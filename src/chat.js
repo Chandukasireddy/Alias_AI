@@ -1,9 +1,11 @@
 /**
- * Alias AI — Interactive Terminal Chat Session
+ * Alias AI — Interactive Terminal Chat Session (Google Antigravity & Claude Code Inspired)
  * 
- * Provides a clean, responsive terminal chat REPL directly in the terminal.
- * Communicates through the local zero-knowledge privacy proxy, displaying
- * real-time masked token alerts and clean streaming responses from NVIDIA Nemotron.
+ * Provides an elegant, minimalist terminal chat REPL with clear visual hierarchy:
+ *   [PROMPT]     > user prompt
+ *   [PROCESSING] ● Airgap Enclave: secrets vaulted · 0.00% cloud leakage
+ *   [OUTPUT]     2-space indented readable response from NVIDIA Nemotron NIM
+ *   [STATUS]     Divider line with shortcuts and model status
  */
 
 const http = require('http');
@@ -23,8 +25,22 @@ class InteractiveChat {
     let activeRequest = null;
     let isBusy = false;
 
-    console.log('\x1b[90mInteractive Chat Session (/exit to quit, /help for cmds)\x1b[0m');
-    console.log('\x1b[90m────────────────────────────────────────────────────\x1b[0m\n');
+    const printStatusLine = () => {
+      const width = 52;
+      const left = '? for shortcuts';
+      const right = 'NVIDIA Nemotron · 0.00% airgap';
+      const pad = Math.max(width - left.length - right.length, 4);
+      console.log('\x1b[90m' + left + ' '.repeat(pad) + right + '\x1b[0m\n');
+    };
+
+    const printDividerAndStatus = () => {
+      const width = 52;
+      const divider = '─'.repeat(width);
+      console.log('\x1b[90m' + divider + '\x1b[0m');
+      printStatusLine();
+    };
+
+    printStatusLine();
     rl.prompt();
 
     rl.on('line', async (line) => {
@@ -35,38 +51,38 @@ class InteractiveChat {
         return;
       }
 
-      // Handle Slash Commands
-      if (input.startsWith('/')) {
+      // Handle Slash Commands & Quick '?'
+      if (input === '?' || input.startsWith('/') || input.toLowerCase() === 'help') {
         const cmd = input.toLowerCase();
 
         if (cmd === '/exit' || cmd === '/quit' || cmd === 'exit' || cmd === 'quit') {
-          console.log('\n\x1b[90mPurging session vault and shutting down...\x1b[0m');
+          console.log('\n  \x1b[90mPurging session vault and shutting down...\x1b[0m');
           await server.stop();
-          console.log('\x1b[32m✔ Airgap purged. Session terminated.\x1b[0m\n');
+          console.log('  \x1b[32m✔ Airgap purged. Session terminated.\x1b[0m\n');
           process.exit(0);
         }
 
         if (cmd === '/clear') {
           console.clear();
           SetupWizard.printLogo(options);
-          console.log('\x1b[90mInteractive Chat Session (/exit to quit, /help for cmds)\x1b[0m');
-          console.log('\x1b[90m────────────────────────────────────────────────────\x1b[0m\n');
           conversation = [];
+          printDividerAndStatus();
           rl.prompt();
           return;
         }
 
         if (cmd === '/vault') {
-          console.log('\n\x1b[1m\x1b[37m[Local Session Vault]\x1b[0m \x1b[90m(Workstation RAM Only):\x1b[0m');
+          console.log('\n  \x1b[1m\x1b[37m● Local Session Vault\x1b[0m \x1b[90m(Workstation RAM Only):\x1b[0m');
           if (server.aliaser.vault.size === 0) {
-            console.log('  \x1b[90m(Vault is empty — no sensitive credentials detected yet)\x1b[0m\n');
+            console.log('    \x1b[90m(Vault is empty — zero sensitive credentials detected yet)\x1b[0m\n');
           } else {
             let idx = 1;
             server.aliaser.vault.forEach((alias, realVal) => {
-              console.log(`  ${idx++}. \x1b[32m${alias.padEnd(22)}\x1b[0m : \x1b[36m${realVal}\x1b[0m`);
+              console.log(`    ${idx++}. \x1b[32m${alias.padEnd(22)}\x1b[0m : \x1b[36m${realVal}\x1b[0m`);
             });
-            console.log(`\x1b[90m  Total: ${server.aliaser.vault.size} protected tokens | 0.00% leakage\x1b[0m\n`);
+            console.log(`\n    \x1b[90mProtected: ${server.aliaser.vault.size} tokens | Cloud leakage: 0.00%\x1b[0m\n`);
           }
+          printDividerAndStatus();
           rl.prompt();
           return;
         }
@@ -74,36 +90,42 @@ class InteractiveChat {
         if (cmd === '/rehydrate') {
           isRehydrating = !isRehydrating;
           server.rehydrate = isRehydrating;
+          console.log('');
           if (isRehydrating) {
-            console.log('\x1b[32m✔ Local De-hydration: ON\x1b[0m \x1b[90m(Cloud responses will restore real secrets locally)\x1b[0m\n');
+            console.log('  \x1b[32m● Local De-hydration: ON\x1b[0m \x1b[90m(Cloud responses will restore real secrets locally)\x1b[0m\n');
           } else {
-            console.log('\x1b[33m! Local De-hydration: OFF\x1b[0m \x1b[90m(Cloud responses retain <ALIAS_*> placeholders)\x1b[0m\n');
+            console.log('  \x1b[33m● Local De-hydration: OFF\x1b[0m \x1b[90m(Cloud responses retain <ALIAS_*> placeholders)\x1b[0m\n');
           }
+          printDividerAndStatus();
           rl.prompt();
           return;
         }
 
-        if (cmd === '/help') {
-          console.log('\n\x1b[1m\x1b[37mAvailable Commands:\x1b[0m');
-          console.log('  \x1b[32m/vault\x1b[0m      Inspect secrets protected in local session vault');
-          console.log('  \x1b[32m/rehydrate\x1b[0m  Toggle local secret restoration on/off');
-          console.log('  \x1b[32m/clear\x1b[0m      Clear screen and reset conversation history');
-          console.log('  \x1b[32m/exit\x1b[0m       Exit and securely purge memory vault\n');
+        if (cmd === '?' || cmd === '/help' || cmd === 'help') {
+          console.log('\n  \x1b[1m\x1b[37mCommands & Shortcuts:\x1b[0m');
+          console.log('    \x1b[32m/vault\x1b[0m      Inspect secrets vaulted in local session RAM');
+          console.log('    \x1b[32m/rehydrate\x1b[0m  Toggle local secret restoration on/off');
+          console.log('    \x1b[32m/clear\x1b[0m      Clear screen and reset conversation history');
+          console.log('    \x1b[32m/exit\x1b[0m       Purge local session vault and exit\n');
+          printDividerAndStatus();
           rl.prompt();
           return;
         }
 
-        console.log(`\x1b[33mUnknown command: ${input}. Type /help for options.\x1b[0m\n`);
+        console.log(`\n  \x1b[33mUnknown command: ${input}. Type ? for options.\x1b[0m\n`);
+        printDividerAndStatus();
         rl.prompt();
         return;
       }
 
       if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
-        console.log('\n\x1b[90mPurging session vault and shutting down...\x1b[0m');
+        console.log('\n  \x1b[90mPurging session vault and shutting down...\x1b[0m');
         await server.stop();
-        console.log('\x1b[32m✔ Airgap purged. Session terminated.\x1b[0m\n');
+        console.log('  \x1b[32m✔ Airgap purged. Session terminated.\x1b[0m\n');
         process.exit(0);
       }
+
+      console.log('');
 
       // Check for sensitive tokens locally to show clean alert badge
       try {
@@ -112,7 +134,7 @@ class InteractiveChat {
           const readableTypes = [...new Set(preCheck.entities.map(e => {
             return e.type.replace('CONTEXTUAL_', '').replace('_NUMBER', '').toLowerCase();
           }))];
-          console.log(`\x1b[33m🛡️  [Airgap Vault]\x1b[0m ${preCheck.entities.length} secret(s) masked (${readableTypes.join(', ')}) → \x1b[32m0.00% cloud leakage\x1b[0m`);
+          console.log(`  \x1b[32m●\x1b[0m \x1b[1m\x1b[37mAirgap Enclave:\x1b[0m \x1b[33m${preCheck.entities.length} secret(s) vaulted\x1b[0m \x1b[90m(${readableTypes.join(', ')}) · \x1b[32m0.00% cloud leakage\x1b[0m\n`);
         }
       } catch {}
 
@@ -121,7 +143,7 @@ class InteractiveChat {
 
       // Start streaming request to local proxy
       isBusy = true;
-      process.stdout.write('\x1b[90m▸ Thinking...\x1b[0m');
+      process.stdout.write('  \x1b[90m▸ Thinking...\x1b[0m');
 
       let hadContent = false;
       let assistantResponse = '';
@@ -151,10 +173,10 @@ class InteractiveChat {
             readline.cursorTo(process.stdout, 0);
             readline.clearLine(process.stdout, 0);
           } else {
-            process.stdout.write('\r                \r');
+            process.stdout.write('\r                        \r');
           }
         } catch {
-          process.stdout.write('\r                \r');
+          process.stdout.write('\r                        \r');
         }
       };
 
@@ -168,12 +190,13 @@ class InteractiveChat {
           res.on('end', () => {
             try {
               const parsed = JSON.parse(errData);
-              console.log(`\x1b[31m[NVIDIA NIM Error ${res.statusCode}]\x1b[0m ${parsed.error?.message || parsed.detail || errData}\n`);
+              console.log(`  \x1b[31m[NVIDIA NIM Error ${res.statusCode}]\x1b[0m ${parsed.error?.message || parsed.detail || errData}\n`);
             } catch {
-              console.log(`\x1b[31m[NVIDIA NIM Error ${res.statusCode}]\x1b[0m ${errData}\n`);
+              console.log(`  \x1b[31m[NVIDIA NIM Error ${res.statusCode}]\x1b[0m ${errData}\n`);
             }
             isBusy = false;
             activeRequest = null;
+            printDividerAndStatus();
             rl.prompt();
           });
           return;
@@ -199,9 +222,9 @@ class InteractiveChat {
                 }
                 const errMsg = data.error.message || 'Worker pool busy';
                 if (errMsg.includes('Worker local total request limit reached')) {
-                  console.log(`\x1b[33m[NVIDIA Cloud Notice]\x1b[0m Hosted preview worker pool busy. Please retry in a few moments.\n`);
+                  console.log(`  \x1b[33m[NVIDIA Cloud Notice]\x1b[0m Hosted preview worker pool busy. Please retry in a few moments.\n`);
                 } else {
-                  console.log(`\x1b[31m[NVIDIA Cloud Notice]\x1b[0m ${errMsg}\n`);
+                  console.log(`  \x1b[31m[NVIDIA Cloud Notice]\x1b[0m ${errMsg}\n`);
                 }
                 hadContent = true;
                 continue;
@@ -215,13 +238,15 @@ class InteractiveChat {
                   continue;
                 }
 
-                // Handle real content streaming
+                // Handle real content streaming with 2-space indentation
                 if (delta.content) {
                   if (!hadContent) {
                     hadContent = true;
                     clearThinkingLine();
+                    process.stdout.write('  ');
                   }
-                  process.stdout.write(delta.content);
+                  const formattedChunk = delta.content.replace(/\n/g, '\n  ');
+                  process.stdout.write(formattedChunk);
                   assistantResponse += delta.content;
                 }
               }
@@ -239,15 +264,17 @@ class InteractiveChat {
           }
           isBusy = false;
           activeRequest = null;
+          printDividerAndStatus();
           rl.prompt();
         });
       });
 
       activeRequest.on('error', (err) => {
         clearThinkingLine();
-        console.log(`\x1b[31m[Connection Error]\x1b[0m ${err.message}\n`);
+        console.log(`  \x1b[31m[Connection Error]\x1b[0m ${err.message}\n`);
         isBusy = false;
         activeRequest = null;
+        printDividerAndStatus();
         rl.prompt();
       });
 
@@ -261,12 +288,13 @@ class InteractiveChat {
         activeRequest.destroy();
         activeRequest = null;
         isBusy = false;
-        process.stdout.write('\r\x1b[K\x1b[90m(Request cancelled)\x1b[0m\n\n');
+        process.stdout.write('\r\x1b[K  \x1b[90m(Request cancelled)\x1b[0m\n\n');
+        printDividerAndStatus();
         rl.prompt();
       } else {
-        console.log('\n\x1b[90mPurging session vault and shutting down...\x1b[0m');
+        console.log('\n  \x1b[90mPurging session vault and shutting down...\x1b[0m');
         await server.stop();
-        console.log('\x1b[32m✔ Airgap purged. Session terminated.\x1b[0m\n');
+        console.log('  \x1b[32m✔ Airgap purged. Session terminated.\x1b[0m\n');
         process.exit(0);
       }
     });

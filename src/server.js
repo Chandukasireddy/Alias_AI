@@ -56,10 +56,11 @@ class ProxyServer {
 
       this.server.on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
-          console.error(`\x1b[31m[ERROR] Port ${this.port} is already in use by another process.\x1b[0m`);
-          console.error(`\x1b[90mTry running with another port: alias-ai start -p 8081\x1b[0m`);
-        } else {
-          console.error(`\x1b[31m[ERROR] Proxy server error:\x1b[0m`, err);
+          this.port++;
+          try {
+            this.server.listen(this.port, this.host);
+            return;
+          } catch {}
         }
         reject(err);
       });
