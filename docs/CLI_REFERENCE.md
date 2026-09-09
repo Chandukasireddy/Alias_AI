@@ -117,3 +117,4 @@ Performs an automated self-test across 5 synthetic test cases containing:
 5. European personal names and addresses
 
 Asserts that $E_{leak} \equiv 0.00\%$ across all test payloads.
+

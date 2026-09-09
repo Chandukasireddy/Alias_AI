@@ -17,3 +17,4 @@ Briefly describe the change, rationale, and any relevant background.
 - [ ] My code adheres to the project's code style and standard library guidelines (zero dependencies for core CLI).
 - [ ] I have updated relevant documentation where applicable.
 - [ ] All sensitive credentials or tokens in test files use `<ALIAS_*>` placeholders.
+

@@ -28,3 +28,4 @@ body:
       placeholder: "1. Run alias-ai start\n2. Type prompt: ..."
     validations:
       required: true
+

@@ -42,3 +42,4 @@ The egress gate enforces the strict invariant:
 $$\forall s \in \mathcal{S}_{vault}, \quad s \notin \mathcal{P}_{wire}$$
 
 If any sub-string match occurs ($s \in \mathcal{P}_{wire}$), the egress connection is terminated with a zero-byte payload and a security violation is logged locally.
+

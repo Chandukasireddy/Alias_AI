@@ -96,3 +96,4 @@ You can easily add new patterns to `this.patterns` in `src/aliaser.js`:
 All contributors will be featured in our README and documentation release notes. Whether you contribute code, documentation, or report an edge-case bug, your efforts help build a more sovereign, private future for AI.
 
 Thank you for helping make AI safe and private for everyone!
+
