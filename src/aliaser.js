@@ -101,6 +101,34 @@ class AliasingEngine {
         prefix: '<ALIAS_PHONE_',
         regex: /(?:\+49|0049|0)[1-9][0-9 \-\/]{7,15}\b/g,
         category: 'PII'
+      },
+      {
+        type: 'PERSON_NAME',
+        prefix: '<ALIAS_PERSON_',
+        regex: /(?:(?:my\s+name\s+is|mein\s+name\s+ist|i\s+am|ich\s+heiße)\s+)([A-Za-z]+)\b/gi,
+        group: 1,
+        category: 'PII'
+      },
+      {
+        type: 'CONTEXTUAL_PHONE',
+        prefix: '<ALIAS_PHONE_',
+        regex: /(?:(?:my\s+)?(?:mobile|phone|tel|cell|handy)(?:\s*(?:number|nr|no)?)?\s*(?:is|:|=)?\s*)([0-9+ \-\/]{6,16})\b/gi,
+        group: 1,
+        category: 'PII'
+      },
+      {
+        type: 'CONTEXTUAL_ACCOUNT',
+        prefix: '<ALIAS_IBAN_',
+        regex: /(?:(?:my\s+)?(?:iban|account|konto|bank)(?:\s*(?:number|nr|no)?)?\s*(?:is|:|=)?\s*)([A-Z0-9 ]{8,34})\b/gi,
+        group: 1,
+        category: 'FINANCIAL'
+      },
+      {
+        type: 'LOCATION_ADDRESS',
+        prefix: '<ALIAS_LOCATION_',
+        regex: /(?:(?:i\s+live\s+in|living\s+in|wohne\s+in)\s+)(.+?)(?=\s+(?:and|with|my|\.)|$)/gi,
+        group: 1,
+        category: 'PII'
       }
     ];
   }
@@ -138,8 +166,8 @@ class AliasingEngine {
       let match;
       
       while ((match = rule.regex.exec(text)) !== null) {
-        const raw = match[0];
-        if (raw.startsWith('<ALIAS_') && raw.endsWith('>')) continue;
+        const raw = (rule.group && match[rule.group]) ? match[rule.group].trim() : match[0].trim();
+        if (!raw || (raw.startsWith('<ALIAS_') && raw.endsWith('>'))) continue;
 
         const alias = this.getOrCreateAlias(raw, rule.type, rule.prefix);
         extracted.push({
@@ -151,7 +179,15 @@ class AliasingEngine {
         });
       }
 
-      if (rule.regex.test(transformed)) {
+      if (rule.group) {
+        transformed = transformed.replace(rule.regex, (fullMatch, group1) => {
+          if (!group1) return fullMatch;
+          const trimmed = group1.trim();
+          if (trimmed.startsWith('<ALIAS_') && trimmed.endsWith('>')) return fullMatch;
+          const alias = this.getOrCreateAlias(trimmed, rule.type, rule.prefix);
+          return fullMatch.replace(group1, alias);
+        });
+      } else if (rule.regex.test(transformed)) {
         transformed = transformed.replace(rule.regex, (match) => {
           if (match.startsWith('<ALIAS_') && match.endsWith('>')) return match;
           return this.getOrCreateAlias(match, rule.type, rule.prefix);

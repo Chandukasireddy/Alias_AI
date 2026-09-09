@@ -62,3 +62,4 @@ print(response.choices[0].message.content)
 - **Level 2 (Egress Gate):** Validates 0.00% private entropy leakage.
 - **Level 3 (Cloud LLM):** Frontier cloud model reasons on anonymized AST and placeholders.
 - **Level 4 (Inbound Stream):** Placeholders streamed natively (or re-hydrated with `-r`).
+
