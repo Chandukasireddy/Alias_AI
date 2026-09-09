@@ -24,7 +24,7 @@ class CLI {
     }
     const options = {
       port: 8080,
-      upstream: 'https://api.openai.com',
+      upstream: null,
       rehydrate: false,
       gemma: false,
       noWizard: false
