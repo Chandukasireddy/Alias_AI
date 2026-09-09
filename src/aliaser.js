@@ -112,14 +112,14 @@ class AliasingEngine {
       {
         type: 'CONTEXTUAL_PHONE',
         prefix: '<ALIAS_PHONE_',
-        regex: /(?:(?:my\s+)?(?:mobile|phone|tel|cell|handy)(?:\s*(?:number|nr|no)?)?\s*(?:is|:|=)?\s*)([0-9+ \-\/]{6,16})\b/gi,
+        regex: /(?:(?:my\s+)?(?:mobile|phone|tel|cell|handy)(?:\s*(?:number|nr|no)?)?\s*(?:is|:|=)?\s*)([0-9+\-\/]{6,16})\b/gi,
         group: 1,
         category: 'PII'
       },
       {
         type: 'CONTEXTUAL_ACCOUNT',
         prefix: '<ALIAS_IBAN_',
-        regex: /(?:(?:my\s+)?(?:iban|account|konto|bank)(?:\s*(?:number|nr|no)?)?\s*(?:is|:|=)?\s*)([A-Z0-9 ]{8,34})\b/gi,
+        regex: /(?:(?:my\s+)?(?:iban|account|konto|bank)(?:\s*(?:number|nr|no)?)?\s*(?:is|:|=)?\s*)([A-Z0-9]{8,34})\b/gi,
         group: 1,
         category: 'FINANCIAL'
       },
