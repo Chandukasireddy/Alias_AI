@@ -1,0 +1,36 @@
+﻿version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.backend
+    container_name: alias-ai-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - NEMO_GUARDRAILS_ENABLED=true
+      - LLM_PROVIDER=simulated
+      - ENABLE_NEMO_GUARDRAILS=true
+    restart: unless-stopped
+    networks:
+      - alias-network
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.frontend
+    container_name: alias-ai-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - alias-network
+
+networks:
+  alias-network:
+    driver: bridge

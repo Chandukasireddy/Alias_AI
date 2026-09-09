@@ -1,0 +1,99 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nim-nemotron-70b
+  namespace: alias-ai
+  labels:
+    app: nim-nemotron-70b
+    contest: nvidia-gtc-berlin-2026
+    tier: cloud-reasoning
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nim-nemotron-70b
+  template:
+    metadata:
+      labels:
+        app: nim-nemotron-70b
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-l4
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: nim-nemotron
+          image: nvcr.io/nim/nvidia/nemotron-4-340b-instruct:latest
+          env:
+            - name: NGC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ngc-secret
+                  key: NGC_API_KEY
+            - name: MODEL_NAME
+              value: "nvidia/nemotron-4-340b-instruct"
+            - name: NIM_CACHE_PATH
+              value: "/opt/nim/.cache"
+          ports:
+            - containerPort: 8000
+              name: http
+          resources:
+            limits:
+              nvidia.com/gpu: "4"
+              memory: 128Gi
+              cpu: "32"
+            requests:
+              nvidia.com/gpu: "4"
+              memory: 64Gi
+              cpu: "16"
+          volumeMounts:
+            - name: nim-cache
+              mountPath: /opt/nim/.cache
+          readinessProbe:
+            httpGet:
+              path: /v1/health/ready
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v1/health/live
+              port: 8000
+            initialDelaySeconds: 150
+            periodSeconds: 15
+      volumes:
+        - name: nim-cache
+          persistentVolumeClaim:
+            claimName: nim-cache-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nim-nemotron-service
+  namespace: alias-ai
+  labels:
+    app: nim-nemotron-70b
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: nim-nemotron-70b
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nim-cache-pvc
+  namespace: alias-ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: premium-rwo

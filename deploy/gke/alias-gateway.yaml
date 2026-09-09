@@ -1,0 +1,139 @@
+﻿apiVersion: v1
+kind: Namespace
+metadata:
+  name: alias-ai
+  labels:
+    name: alias-ai
+    competition: nvidia-gtc-berlin-2026
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alias-gateway-config
+  namespace: alias-ai
+data:
+  ENABLE_NEMO_GUARDRAILS: "true"
+  NEMOTRON_ENDPOINT_URL: "http://nim-nemotron-service.alias-ai.svc.cluster.local:8000/v1"
+  NEMOTRON_MODEL_NAME: "nvidia/nemotron-4-340b-instruct"
+  GDPR_ARTICLE_25_ENFORCEMENT: "strict"
+  EU_AI_ACT_ARTICLE_14_AUDIT: "enabled"
+  MAX_ENTROPY_LEAKAGE_THRESHOLD: "0.00"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alias-gateway-backend
+  namespace: alias-ai
+  labels:
+    app: alias-gateway-backend
+    tier: edge-enclave
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: alias-gateway-backend
+  template:
+    metadata:
+      labels:
+        app: alias-gateway-backend
+    spec:
+      containers:
+        - name: gateway-backend
+          image: gcr.io/nvidia-gtc-2026/alias-ai-backend:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: alias-gateway-config
+          env:
+            - name: AES_VAULT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: alias-vault-secret
+                  key: AES_VAULT_KEY
+          ports:
+            - containerPort: 8000
+              name: api
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alias-gateway-backend-svc
+  namespace: alias-ai
+  labels:
+    app: alias-gateway-backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app: alias-gateway-backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alias-cockpit-frontend
+  namespace: alias-ai
+  labels:
+    app: alias-cockpit-frontend
+    tier: ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: alias-cockpit-frontend
+  template:
+    metadata:
+      labels:
+        app: alias-cockpit-frontend
+    spec:
+      containers:
+        - name: cockpit-ui
+          image: gcr.io/nvidia-gtc-2026/alias-ai-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alias-cockpit-frontend-svc
+  namespace: alias-ai
+  labels:
+    app: alias-cockpit-frontend
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  selector:
+    app: alias-cockpit-frontend
