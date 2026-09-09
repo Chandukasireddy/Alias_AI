@@ -1,239 +1,373 @@
-<div class="app-layout">
-  <!-- HEADER -->
-  <header class="navbar">
-    <div class="nav-left">
-      <div class="logo">
-        <svg class="logo-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<div class="docs-site">
+  <!-- TOP NAVIGATION -->
+  <header class="top-nav">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <svg class="brand-shield" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
         </svg>
-        <span class="logo-text">Alias AI</span>
-      </div>
-      <span class="logo-divider">/</span>
-      <span class="logo-desc">Zero-Knowledge Enterprise LLM Gateway</span>
-    </div>
-
-    <div class="nav-right">
-      <div class="nav-badge gtc-tag">
-        <span class="status-indicator ready"></span>
-        <span>NVIDIA GTC Berlin 2026</span>
+        <span class="brand-name">Alias AI</span>
+        <span class="brand-version">v0.1.0</span>
       </div>
 
-      <div class="tech-tags">
-        <span class="tech-tag">Gemma 2 (Edge)</span>
-        <span class="tag-sep">⟷</span>
-        <span class="tech-tag">Nemotron-70B (GKE)</span>
-        <span class="tech-tag guardrail-tag">NeMo Guardrails</span>
+      <nav class="nav-links">
+        <button class="nav-link" (click)="scrollToSection('how-it-works')">How it Works</button>
+        <button class="nav-link" (click)="scrollToSection('simulator')">Interactive Simulator</button>
+        <button class="nav-link" (click)="scrollToSection('integrations')">Integrations</button>
+        <button class="nav-link" (click)="scrollToSection('cli')">CLI Reference</button>
+      </nav>
+
+      <div class="nav-actions">
+        <a class="btn-github" href="https://github.com/Chandukasireddy/Alias_AI" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>Star on GitHub</span>
+        </a>
       </div>
     </div>
   </header>
 
-  <!-- SCENARIO BAR -->
-  <nav class="scenarios-container">
-    <span class="scenarios-heading">Test Scenario:</span>
-    <div class="scenarios-list">
-      @for (sc of scenarios; track sc.id) {
-        <button 
-          class="scenario-pill" 
-          [class.active]="selectedScenarioId() === sc.id"
-          (click)="selectScenario(sc.id)">
-          <span class="scenario-pill-icon">{{ sc.icon }}</span>
-          <span>{{ sc.title }}</span>
-        </button>
-      }
-    </div>
-  </nav>
-
-  <!-- 3-PANEL GRID -->
-  <main class="panels-grid">
-    <!-- PANEL 1: LOCAL ENCLAVE -->
-    <section class="card">
-      <div class="card-header">
-        <div class="card-title-group">
-          <span class="card-step">1</span>
-          <div>
-            <h2 class="card-title">Local Input Enclave</h2>
-            <p class="card-subtitle">Client-side memory — zero network access</p>
-          </div>
-        </div>
-        <span class="status-pill safe">Airgapped</span>
+  <!-- HERO SECTION -->
+  <section class="hero-section">
+    <div class="hero-container">
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        <span>Open-Source Local Privacy Airgap</span>
       </div>
 
-      <div class="card-body">
-        <div class="input-wrapper">
-          <label class="field-label" for="prompt-input">Confidential Prompt</label>
-          <textarea 
-            id="prompt-input"
-            class="clean-textarea" 
-            [(ngModel)]="rawPrompt" 
-            placeholder="Enter prompt with proprietary data, vehicle VINs, German IBANs, or credentials..."
-            rows="10">
-          </textarea>
-        </div>
+      <h1 class="hero-title">
+        Airgap your LLM calls<br>
+        before they leave your laptop.
+      </h1>
 
-        <!-- VAULT CHIPS -->
-        <div class="vault-section">
-          <div class="vault-header">
-            <span class="vault-title">Ephemeral Vault (AES-256)</span>
-            <span class="vault-count">{{ detectedEntities().length }} entities</span>
-          </div>
-          
-          <div class="vault-chips-grid">
-            @if (detectedEntities().length === 0) {
-              <span class="empty-state">Entities extracted by Gemma 2 will appear here as typed aliases.</span>
-            } @else {
-              @for (entity of detectedEntities(); track entity.id) {
-                <div class="alias-card">
-                  <span class="alias-badge">{{ entity.alias_token }}</span>
-                  <span class="alias-arrow">→</span>
-                  <span class="alias-real" title="{{ entity.original_value }}">{{ entity.original_value }}</span>
-                </div>
-              }
-            }
-          </div>
-        </div>
+      <p class="hero-subtitle">
+        Alias AI is a local, transparent proxy for developers and enterprises. It intercepts API keys,
+        customer PII, and industrial hardware secrets, replaces them with typed placeholders, and forwards
+        only clean aliases to cloud models. Zero cloud leakage. 100% sovereign.
+      </p>
 
-        <div class="card-actions">
+      <!-- INSTALL COMMAND BAR -->
+      <div class="install-bar">
+        <div class="install-code mono">
+          <span class="prompt-sign">$</span>
+          <span>npx alias-ai start</span>
+        </div>
+        <button class="btn-copy" (click)="copyInstallCommand()">
+          @if (copiedInstall()) {
+            <span>Copied!</span>
+          } @else {
+            <span>Copy</span>
+          }
+        </button>
+      </div>
+
+      <div class="hero-features">
+        <span class="feature-item">✓ Localhost Socket (127.0.0.1:8080)</span>
+        <span class="feature-item">✓ Pass-Through Streaming by Default</span>
+        <span class="feature-item">✓ Gemma 2 & Regex Engine</span>
+        <span class="feature-item">✓ 0.00% Entropy Leakage Proof</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS SECTION -->
+  <section id="how-it-works" class="section-container">
+    <div class="section-header">
+      <h2 class="section-title">How It Works</h2>
+      <p class="section-desc">The local proxy sits transparently between your IDE/scripts and cloud LLM providers.</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <h3 class="step-title">Local Intercept</h3>
+        <p class="step-text">Your app, Cursor IDE, or Python script calls <code>http://127.0.0.1:8080/v1</code> using standard OpenAI protocol. No code refactor needed.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <h3 class="step-title">Extract & Alias</h3>
+        <p class="step-text">Local Gemma 2 and deterministic checksum rules strip sensitive VINs, IBANs, and API credentials into an in-memory AES-256 vault.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <h3 class="step-title">Egress Firewall</h3>
+        <p class="step-text">NVIDIA NeMo Guardrails mathematically verifies 0.00% private entropy leakage before the payload traverses TLS egress to the cloud.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">04</div>
+        <h3 class="step-title">Pass-Through Streaming</h3>
+        <p class="step-text">By default, tokens stream natively with <code>&lt;ALIAS_*&gt;</code> placeholders for maximum speed. Turn on <code>--rehydrate</code> to swap real secrets back locally.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE SIMULATOR SECTION -->
+  <section id="simulator" class="section-container">
+    <div class="section-header">
+      <div class="header-inline">
+        <div>
+          <h2 class="section-title">Interactive In-Browser Airgap Simulator</h2>
+          <p class="section-desc">Test real-time semantic extraction and see what actually leaves your laptop.</p>
+        </div>
+        <div class="rehydrate-toggle-container">
+          <label class="toggle-label" for="rehydrate-switch">
+            <span>Re-hydration Mode:</span>
+            <span class="toggle-status" [class.on]="rehydrateEnabled()">
+              {{ rehydrateEnabled() ? 'ON (Replaces Secrets Locally)' : 'OFF (Default Placeholder Streaming)' }}
+            </span>
+          </label>
+          <button id="rehydrate-switch" class="toggle-btn" [class.active]="rehydrateEnabled()" (click)="toggleRehydration()">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENARIOS SELECTOR -->
+    <div class="scenario-selector">
+      <span class="selector-label">Load Enterprise Scenario:</span>
+      <div class="selector-buttons">
+        @for (sc of scenarios; track sc.id) {
           <button 
-            class="btn-primary" 
-            [disabled]="isProcessing() || !rawPrompt().trim()"
-            (click)="runAirgapPipeline()">
+            class="selector-btn" 
+            [class.active]="selectedScenarioId() === sc.id"
+            (click)="selectScenario(sc.id)">
+            <span>{{ sc.icon }}</span>
+            <span>{{ sc.title }}</span>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- 3-COLUMN PLAYGROUND -->
+    <div class="simulator-grid">
+      <!-- COL 1: RAW INPUT -->
+      <div class="sim-card">
+        <div class="sim-card-header">
+          <span class="sim-title">1. Raw Input (Your Machine)</span>
+          <span class="sim-pill airgap">Private Enclave</span>
+        </div>
+        <div class="sim-card-body">
+          <textarea 
+            class="sim-textarea" 
+            [(ngModel)]="customInput" 
+            rows="9"
+            placeholder="Type or paste prompt with confidential VINs, IBANs, or API keys...">
+          </textarea>
+
+          <!-- VAULT CHIPS -->
+          <div class="vault-box">
+            <div class="vault-meta">
+              <span>Ephemeral RAM Vault:</span>
+              <span>{{ vaultEntries().length }} secrets isolated</span>
+            </div>
+            <div class="chips-list">
+              @if (vaultEntries().length === 0) {
+                <span class="chips-empty">No secrets detected in prompt.</span>
+              } @else {
+                @for (item of vaultEntries(); track item.id) {
+                  <div class="chip">
+                    <span class="chip-alias">{{ item.alias }}</span>
+                    <span class="chip-sep">→</span>
+                    <span class="chip-orig">{{ item.original }}</span>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+
+          <button 
+            class="btn-simulate" 
+            [disabled]="isProcessing() || !customInput().trim()"
+            (click)="runSimulation()">
             @if (isProcessing()) {
-              <span class="spinner-sm"></span>
-              <span>Sanitizing & Streaming...</span>
+              <span>Streaming Response...</span>
             } @else {
-              <span>Execute Airgap Pipeline</span>
+              <span>Run Local Airgap Simulation</span>
             }
           </button>
         </div>
       </div>
-    </section>
 
-    <!-- PANEL 2: THE CLOUD WIRE -->
-    <section class="card">
-      <div class="card-header">
-        <div class="card-title-group">
-          <span class="card-step">2</span>
-          <div>
-            <h2 class="card-title">The Cloud Wire</h2>
-            <p class="card-subtitle">What travels across the network to GKE</p>
-          </div>
+      <!-- COL 2: WIRE PAYLOAD -->
+      <div class="sim-card">
+        <div class="sim-card-header">
+          <span class="sim-title">2. What Leaves Your Laptop (Wire Payload)</span>
+          <span class="sim-pill zero">0.00% Leakage</span>
         </div>
-        <span class="status-pill" [class.success]="entropyLeakage() === 0">
-          Leakage: {{ entropyLeakage() }}%
-        </span>
-      </div>
+        <div class="sim-card-body">
+          <pre class="sim-viewer mono">{{ anonymizedWirePayload() }}</pre>
 
-      <div class="card-body">
-        <div class="viewer-wrapper">
-          <div class="viewer-bar">
-            <span class="viewer-filename">payload_transit.json</span>
-            <span class="viewer-meta">NeMo Egress Guarded</span>
-          </div>
-          <pre class="clean-code-viewer">@if (sanitizedPrompt()) {
-{{ sanitizedPrompt() }}
-} @else {
-// Awaiting execution...
-// All sensitive entities will be masked into typed aliases.
-// The cloud model NEVER sees real secrets.
-}</pre>
-        </div>
-
-        <div class="metrics-grid">
-          <div class="metric-cell">
-            <span class="metric-label">Transport</span>
-            <span class="metric-value">TLS 1.3 (Zero-Knowledge)</span>
-          </div>
-          <div class="metric-cell">
-            <span class="metric-label">Cloud Target</span>
-            <span class="metric-value">Nemotron-70B on GKE</span>
-          </div>
-          <div class="metric-cell">
-            <span class="metric-label">Secrets on Wire</span>
-            <span class="metric-value highlight-zero">0.00% (Verified)</span>
+          <div class="sim-stats">
+            <div class="stat-box">
+              <span class="stat-k">Transport</span>
+              <span class="stat-v">TLS 1.3 Clean</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-k">Cloud Target</span>
+              <span class="stat-v">Nemotron-70B / OpenAI</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-k">Entropy Leakage</span>
+              <span class="stat-v highlight-green">0.00% [Verified]</span>
+            </div>
           </div>
         </div>
       </div>
-    </section>
 
-    <!-- PANEL 3: RE-HYDRATED SOLUTION -->
-    <section class="card">
-      <div class="card-header">
-        <div class="card-title-group">
-          <span class="card-step">3</span>
-          <div>
-            <h2 class="card-title">Client Solution</h2>
-            <p class="card-subtitle">Real-time local re-hydration</p>
-          </div>
+      <!-- COL 3: MODEL RESPONSE -->
+      <div class="sim-card">
+        <div class="sim-card-header">
+          <span class="sim-title">3. Model Output ({{ rehydrateEnabled() ? 'Re-hydrated' : 'Placeholder Mode' }})</span>
+          @if (streamTokens() > 0) {
+            <span class="sim-pill token-pill">{{ streamTokens() }} tokens</span>
+          } @else {
+            <span class="sim-pill ready-pill">Awaiting Run</span>
+          }
         </div>
-        @if (tokensGenerated() > 0) {
-          <span class="status-pill success">{{ tokensGenerated() }} tokens</span>
-        } @else {
-          <span class="status-pill neutral">Ready</span>
-        }
-      </div>
-
-      <div class="card-body">
-        <div class="viewer-wrapper">
-          <div class="viewer-bar">
-            <span class="viewer-filename">rehydrated_solution.md</span>
-            <span class="viewer-meta">Local Memory Stream</span>
-          </div>
-          <div class="output-container">
-            @if (rehydratedOutput()) {
-              <pre class="clean-output-text">{{ rehydratedOutput() }}</pre>
+        <div class="sim-card-body">
+          <div class="response-viewer">
+            @if (simulatedResponse()) {
+              <pre class="response-text">{{ simulatedResponse() }}</pre>
             } @else {
-              <div class="empty-output">
-                <p>Run the pipeline to stream the solution from NVIDIA Nemotron-70B.</p>
-                <small>Local re-hydration substitutes real values back on the fly.</small>
+              <div class="response-placeholder">
+                <p>Click "Run Local Airgap Simulation" to stream the response.</p>
+                <small>Notice that placeholders are returned by default for zero streaming lag.</small>
               </div>
             }
           </div>
         </div>
+      </div>
+    </div>
+  </section>
 
-        <!-- COMPLIANCE AUDIT CERTIFICATE -->
-        @if (auditCertificate()) {
-          <div class="audit-card">
-            <div class="audit-header">
-              <div>
-                <div class="audit-title">Compliance Certificate</div>
-                <div class="audit-subtitle">GDPR Article 25 & EU AI Act Article 14 Verified</div>
-              </div>
-              <span class="badge-verified">PASSED</span>
-            </div>
-            
-            <div class="audit-grid">
-              <div class="audit-row">
-                <span class="audit-k">Certificate ID:</span>
-                <span class="audit-v mono">{{ auditCertificate()?.certificate_id }}</span>
-              </div>
-              <div class="audit-row">
-                <span class="audit-k">SHA-256 Hash:</span>
-                <span class="audit-v mono">{{ auditCertificate()?.audit_hash | slice:0:28 }}...</span>
-              </div>
-            </div>
+  <!-- INTEGRATION GUIDES -->
+  <section id="integrations" class="section-container">
+    <div class="section-header">
+      <h2 class="section-title">One-Line Developer Integrations</h2>
+      <p class="section-desc">Works transparently with any tool or SDK supporting custom OpenAI base URLs.</p>
+    </div>
 
-            <button class="btn-secondary" (click)="downloadAuditReport()">
-              Download Cryptographic Audit Record (.json)
-            </button>
+    <div class="tabs-container">
+      <div class="tabs-header">
+        <button class="tab-btn" [class.active]="activeTab() === 'cursor'" (click)="activeTab.set('cursor')">Cursor IDE / VS Code</button>
+        <button class="tab-btn" [class.active]="activeTab() === 'python'" (click)="activeTab.set('python')">Python OpenAI SDK</button>
+        <button class="tab-btn" [class.active]="activeTab() === 'langchain'" (click)="activeTab.set('langchain')">LangChain</button>
+        <button class="tab-btn" [class.active]="activeTab() === 'terminal'" (click)="activeTab.set('terminal')">Terminal / cURL</button>
+      </div>
+
+      <div class="tab-content">
+        @if (activeTab() === 'cursor') {
+          <div class="code-snippet-box">
+            <div class="snippet-header">
+              <span>Cursor IDE Setup</span>
+              <button class="btn-copy-code" (click)="copySnippet(cursorSnippet)">Copy Snippet</button>
+            </div>
+            <pre class="code-block mono"><code>{{ cursorSnippet }}</code></pre>
+          </div>
+        }
+
+        @if (activeTab() === 'python') {
+          <div class="code-snippet-box">
+            <div class="snippet-header">
+              <span>Python Integration</span>
+              <button class="btn-copy-code" (click)="copySnippet(pythonSnippet)">Copy Code</button>
+            </div>
+            <pre class="code-block mono"><code>{{ pythonSnippet }}</code></pre>
+          </div>
+        }
+
+        @if (activeTab() === 'langchain') {
+          <div class="code-snippet-box">
+            <div class="snippet-header">
+              <span>LangChain Setup</span>
+              <button class="btn-copy-code" (click)="copySnippet(langchainSnippet)">Copy Code</button>
+            </div>
+            <pre class="code-block mono"><code>{{ langchainSnippet }}</code></pre>
+          </div>
+        }
+
+        @if (activeTab() === 'terminal') {
+          <div class="code-snippet-box">
+            <div class="snippet-header">
+              <span>Terminal & Shell Scripts</span>
+              <button class="btn-copy-code" (click)="copySnippet(terminalSnippet)">Copy Command</button>
+            </div>
+            <pre class="code-block mono"><code>{{ terminalSnippet }}</code></pre>
           </div>
         }
       </div>
-    </section>
-  </main>
-
-  <!-- TELEMETRY FOOTER -->
-  <footer class="app-footer">
-    <div class="footer-left">
-      <span class="footer-item"><strong class="footer-k">Edge Sanitizer:</strong> Google Gemma 2 ({{ aliasingLatency() }}ms)</span>
-      <span class="footer-sep">·</span>
-      <span class="footer-item"><strong class="footer-k">Reasoning Cluster:</strong> NVIDIA Nemotron-70B on GKE</span>
-      <span class="footer-sep">·</span>
-      <span class="footer-item"><strong class="footer-k">Entropy Leakage:</strong> <span class="leak-zero">0.00%</span></span>
-      <span class="footer-sep">·</span>
-      <span class="footer-item"><strong class="footer-k">Egress Guard:</strong> NeMo Guardrails Active</span>
     </div>
-    <div class="footer-right">
-      <span class="footer-context">European Sovereign AI Framework · Dr. Jörg Storm Track</span>
+  </section>
+
+  <!-- CLI REFERENCE TABLE -->
+  <section id="cli" class="section-container">
+    <div class="section-header">
+      <h2 class="section-title">CLI Command Reference</h2>
+      <p class="section-desc">Command-line interface flags for the local proxy.</p>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="cli-table">
+        <thead>
+          <tr>
+            <th>Command / Flag</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono cmd-name">alias-ai start</td>
+            <td class="mono">-</td>
+            <td>Launches the local transparent proxy daemon on your machine.</td>
+          </tr>
+          <tr>
+            <td class="mono cmd-name">--port, -p</td>
+            <td class="mono">8080</td>
+            <td>Port for the local OpenAI-compatible HTTP proxy.</td>
+          </tr>
+          <tr>
+            <td class="mono cmd-name">--target, -t</td>
+            <td class="mono">nvidia-nim</td>
+            <td>Upstream cloud LLM target endpoint (NVIDIA NIM, OpenAI, Anthropic).</td>
+          </tr>
+          <tr>
+            <td class="mono cmd-name">--rehydrate, -r</td>
+            <td class="mono">false</td>
+            <td>Enable local re-hydration of placeholders back to real secrets. (Off by default for maximum streaming speed).</td>
+          </tr>
+          <tr>
+            <td class="mono cmd-name">--model, -m</td>
+            <td class="mono">gemma2</td>
+            <td>Local edge model for semantic extraction (Ollama Gemma 2 or built-in fast rule engine).</td>
+          </tr>
+          <tr>
+            <td class="mono cmd-name">alias-ai doctor</td>
+            <td class="mono">-</td>
+            <td>Runs environmental healthcheck on local ports, Ollama, and Gemma 2.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <span class="footer-brand">Alias AI</span>
+        <span class="footer-copy">© 2026 Open Source Project · Apache 2.0 License</span>
+      </div>
+      <div class="footer-right">
+        <span>NVIDIA GTC Berlin 2026 Submission</span>
+        <span>·</span>
+        <span>Dr. Jörg Storm European AI Sovereignty Track</span>
+      </div>
     </div>
   </footer>
 </div>

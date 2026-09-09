@@ -1,0 +1,34 @@
+{
+  "name": "alias-ai",
+  "version": "0.1.0",
+  "description": "Zero-Knowledge Privacy Airgap Gateway for LLMs & AI Coding Agents",
+  "bin": {
+    "alias-ai": "./bin/alias-ai.js",
+    "alias": "./bin/alias-ai.js"
+  },
+  "main": "./src/index.js",
+  "scripts": {
+    "start": "node ./bin/alias-ai.js start",
+    "doctor": "node ./bin/alias-ai.js doctor",
+    "test": "node ./bin/alias-ai.js test",
+    "config": "node ./bin/alias-ai.js config"
+  },
+  "keywords": [
+    "privacy",
+    "airgap",
+    "llm-proxy",
+    "zero-knowledge",
+    "cursor",
+    "openai-proxy",
+    "gemma",
+    "nemo-guardrails",
+    "nvidia",
+    "gdpr",
+    "eu-ai-act"
+  ],
+  "author": "Alias AI Contributors",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
