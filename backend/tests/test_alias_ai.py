@@ -1,4 +1,10 @@
+import os
+import sys
 import pytest
+
+# Ensure backend directory is on sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from app.models import VaultSession, EntityType
 from app.aliasing_engine import aliasing_engine
 from app.rehydrator import StreamingRehydrator
@@ -43,27 +49,30 @@ def test_nemo_guardrail_egress_audit():
     assert len(violations) == 0
 
 
-@pytest.mark.asyncio
-async def test_streaming_rehydration():
-    session = VaultSession()
-    raw = "Customer Sarah Jenkins has IBAN DE89 3704 0044 0532 0130 00."
-    sanitized, _, _ = aliasing_engine.sanitize(raw, session)
-    
-    # Simulate tokens arriving from cloud LLM with alias tags
-    async def mock_cloud_stream():
-        yield "Approved report for "
-        yield "<ALIAS_PERS_1>"
-        yield " with account "
-        yield "<ALIAS_GERM_1>"
-        yield "."
+def test_streaming_rehydration():
+    import asyncio
 
-    rehydrator = StreamingRehydrator(session)
-    rehydrated_chunks = []
-    async for chunk in rehydrator.rehydrate_stream(mock_cloud_stream()):
-        rehydrated_chunks.append(chunk["rehydrated_chunk"])
+    async def _async_test():
+        session = VaultSession()
+        raw = "Customer Sarah Jenkins has IBAN DE89 3704 0044 0532 0130 00."
+        sanitized, _, _ = aliasing_engine.sanitize(raw, session)
+        
+        # Simulate tokens arriving from cloud LLM with alias tags
+        async def mock_cloud_stream():
+            yield "Approved report for "
+            yield "<ALIAS_PERS_1>"
+            yield " with account "
+            yield "<ALIAS_GERM_1>"
+            yield "."
 
-    full_output = "".join(rehydrated_chunks)
-    assert "Sarah Jenkins" in full_output
-    assert "DE89 3704 0044 0532 0130 00" in full_output
-    assert "<ALIAS_" not in full_output
+        rehydrator = StreamingRehydrator(session)
+        rehydrated_chunks = []
+        async for chunk in rehydrator.rehydrate_stream(mock_cloud_stream()):
+            rehydrated_chunks.append(chunk["rehydrated_chunk"])
 
+        full_output = "".join(rehydrated_chunks)
+        assert "Sarah Jenkins" in full_output
+        assert "DE89 3704 0044 0532 0130 00" in full_output
+        assert "<ALIAS_" not in full_output
+
+    asyncio.run(_async_test())

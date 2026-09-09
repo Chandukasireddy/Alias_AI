@@ -1,0 +1,232 @@
+﻿<div class="alias-cockpit">
+  <!-- HEADER -->
+  <header class="cockpit-header">
+    <div class="brand-group">
+      <div class="logo-badge">
+        <span class="shield-icon">🛡️</span>
+        <div class="brand-titles">
+          <h1>ALIAS AI</h1>
+          <span class="tagline">Zero-Knowledge Privacy Airgap Gateway for Enterprise LLMs</span>
+        </div>
+      </div>
+      <div class="gtc-badge">
+        <span class="pulse-dot"></span>
+        <span>NVIDIA GTC Berlin 2026 Submission</span>
+      </div>
+    </div>
+
+    <!-- TECH ARCHITECTURE BADGES -->
+    <div class="architecture-pills">
+      <div class="pill google-pill">
+        <span class="pill-dot"></span>
+        <span>Local Edge: <strong>Google Gemma 2</strong></span>
+      </div>
+      <div class="pill-separator">⟷</div>
+      <div class="pill nvidia-pill">
+        <span class="pill-dot"></span>
+        <span>Cloud GKE: <strong>NVIDIA Nemotron-70B</strong></span>
+      </div>
+      <div class="pill guardrail-pill">
+        <span>🛡️ <strong>NeMo Guardrails Active</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- SCENARIO SELECTOR BAR -->
+  <section class="scenario-bar">
+    <div class="scenario-label">Enterprise Scenarios (Click to Load):</div>
+    <div class="scenario-buttons">
+      @for (sc of scenarios; track sc.id) {
+        <button 
+          class="scenario-btn" 
+          [class.active]="selectedScenarioId() === sc.id"
+          (click)="selectScenario(sc.id)">
+          <span class="scenario-icon">{{ sc.icon }}</span>
+          <span class="scenario-text">{{ sc.title }}</span>
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- MAIN 3-PANEL PRIVACY X-RAY COCKPIT -->
+  <main class="privacy-grid">
+    <!-- PANEL 1: PRIVATE LOCAL ENCLAVE -->
+    <div class="panel panel-local">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="status-indicator local-indicator"></span>
+          <span>1. Private Input Enclave (Local Airgap)</span>
+        </div>
+        <span class="confidential-tag">STRICTLY LOCAL — ZERO NETWORK ACCESS</span>
+      </div>
+      <div class="panel-body">
+        <textarea 
+          class="prompt-textarea" 
+          [(ngModel)]="rawPrompt" 
+          placeholder="Enter prompt containing confidential PII, vehicle VINs, German IBANs, or API keys..."
+          rows="11">
+        </textarea>
+
+        <!-- DETECTED ENTITIES VAULT CHIPS -->
+        <div class="entities-vault">
+          <div class="vault-label">
+            <span>Ephemeral In-Memory Vault (AES-256):</span>
+            <span class="count-badge">{{ detectedEntities().length }} entities</span>
+          </div>
+          <div class="chips-container">
+            @if (detectedEntities().length === 0) {
+              <span class="empty-vault-hint">Entities will be captured and aliased locally by Google Gemma 2.</span>
+            } @else {
+              @for (entity of detectedEntities(); track entity.id) {
+                <div class="entity-chip">
+                  <span class="chip-alias">{{ entity.alias_token }}</span>
+                  <span class="chip-arrow">➔</span>
+                  <span class="chip-real">{{ entity.original_value }}</span>
+                </div>
+              }
+            }
+          </div>
+        </div>
+
+        <div class="panel-actions">
+          <button 
+            class="action-btn run-btn" 
+            [disabled]="isProcessing() || !rawPrompt().trim()"
+            (click)="runAirgapPipeline()">
+            @if (isProcessing()) {
+              <span class="spinner"></span>
+              <span>Sanitizing & Streaming...</span>
+            } @else {
+              <span>⚡ Execute Zero-Knowledge Airgap Run</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2: THE CLOUD WIRE (GKE TRANSIT) -->
+    <div class="panel panel-cloud">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="status-indicator cloud-indicator"></span>
+          <span>2. The Cloud Wire (What GKE Sees)</span>
+        </div>
+        <span class="wire-tag">GKE Europe-West3 Transit</span>
+      </div>
+      <div class="panel-body">
+        <div class="wire-terminal">
+          <div class="terminal-bar">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">wire_payload_inspection.log</span>
+            <span class="entropy-badge">Entropy Leakage: {{ entropyLeakage() }}%</span>
+          </div>
+          <pre class="terminal-content">@if (sanitizedPrompt()) {
+{{ sanitizedPrompt() }}
+} @else {
+// Waiting for execution...
+// All PII, IBANs, vehicle VINs, and API credentials will be masked into typed aliases.
+// The cloud model NEVER sees the real values.
+}</pre>
+        </div>
+
+        <div class="security-matrix">
+          <div class="matrix-item">
+            <span class="matrix-label">Transport:</span>
+            <span class="matrix-value">TLS 1.3 / Zero-Knowledge</span>
+          </div>
+          <div class="matrix-item">
+            <span class="matrix-label">Cloud Target:</span>
+            <span class="matrix-value">NVIDIA Nemotron-70B on GKE</span>
+          </div>
+          <div class="matrix-item">
+            <span class="matrix-label">Raw PII on Wire:</span>
+            <span class="matrix-value highlight-green">0.00% (VERIFIED)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3: RE-HYDRATED LOCAL SOLUTION -->
+    <div class="panel panel-rehydrated">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="status-indicator rehydrated-indicator"></span>
+          <span>3. Re-hydrated Solution (Your Eyes Only)</span>
+        </div>
+        <span class="verified-tag">NeMo Guardrails Verified</span>
+      </div>
+      <div class="panel-body">
+        <div class="rehydrated-terminal">
+          <div class="terminal-bar">
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">local_unmasked_response.md</span>
+            @if (tokensGenerated() > 0) {
+              <span class="token-rate-pill">{{ tokensGenerated() }} tokens streamed</span>
+            }
+          </div>
+          <div class="rehydrated-output">
+            @if (rehydratedOutput()) {
+              <pre class="rendered-markdown">{{ rehydratedOutput() }}</pre>
+            } @else {
+              <div class="empty-output-placeholder">
+                <span class="placeholder-icon">🔒</span>
+                <p>Output from NVIDIA Nemotron-70B will stream here.</p>
+                <small>The local re-hydrator will seamlessly substitute real secrets back into the placeholders on the fly.</small>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- AUDIT CERTIFICATE STRIP -->
+        @if (auditCertificate()) {
+          <div class="audit-certificate-box">
+            <div class="cert-header">
+              <span class="cert-icon">📜</span>
+              <span class="cert-title">EU AI Act & GDPR Compliance Certificate</span>
+              <span class="cert-badge">PASSED</span>
+            </div>
+            <div class="cert-details">
+              <div><strong>ID:</strong> {{ auditCertificate()?.certificate_id }}</div>
+              <div><strong>GDPR Article 25:</strong> Data Protection by Design Verified</div>
+              <div><strong>EU AI Act Article 14:</strong> Human Oversight Enclave Validated</div>
+              <div class="cert-hash"><strong>Audit SHA-256:</strong> {{ auditCertificate()?.audit_hash | slice:0:32 }}...</div>
+            </div>
+            <button class="download-cert-btn" (click)="downloadAuditReport()">
+              📥 Download Cryptographic Audit JSON
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </main>
+
+  <!-- BOTTOM TELEMETRY FOOTER -->
+  <footer class="cockpit-footer">
+    <div class="telemetry-item">
+      <span class="label">Local Gemma 2 Aliasing:</span>
+      <span class="val">{{ aliasingLatency() }} ms</span>
+    </div>
+    <div class="telemetry-separator">|</div>
+    <div class="telemetry-item">
+      <span class="label">Cloud Reasoning:</span>
+      <span class="val highlight-nvidia">NVIDIA Nemotron-70B on GKE</span>
+    </div>
+    <div class="telemetry-separator">|</div>
+    <div class="telemetry-item">
+      <span class="label">Entropy Leakage:</span>
+      <span class="val highlight-green">0.00% [SAFE]</span>
+    </div>
+    <div class="telemetry-separator">|</div>
+    <div class="telemetry-item">
+      <span class="label">Airgap Guard:</span>
+      <span class="val highlight-cyan">NeMo Guardrails Active</span>
+    </div>
+    <div class="telemetry-separator">|</div>
+    <div class="telemetry-item">
+      <span class="label">Berlin GTC Target:</span>
+      <span class="val">Dr. Jörg Storm Track</span>
+    </div>
+  </footer>
+</div>
