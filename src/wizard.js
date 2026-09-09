@@ -71,48 +71,38 @@ class SetupWizard {
       white: '\x1b[37m'
     };
 
-    const cpus = os.cpus().length;
+    const port = options.port || 8080;
     const hasNvidiaKey = Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY.trim());
-    const cloudModel = process.env.CLOUD_REASONING_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
-    const cloudLabel = hasNvidiaKey ? `NVIDIA Nemotron NIM [${cloudModel}]` : 'NVIDIA Nemotron / OpenAI';
+    const cloudLabel = hasNvidiaKey ? 'NVIDIA Nemotron NIM' : 'OpenAI';
 
     console.log('');
-    console.log(c.green + '       ▄▄        ' + c.reset + c.bold + c.white + 'ALIAS AI' + c.reset + ' ' + c.gray + 'v0.1.0 (Zero-Knowledge Airgap Gateway)' + c.reset);
-    console.log(c.green + '      ████       ' + c.reset + c.gray + 'Local-First Privacy Proxy for AI Coding Agents' + c.reset);
-    console.log(c.green + '     ██  ██      ' + c.reset + c.white + 'Local Enclave:  ' + c.reset + c.green + '● Google Gemma 2 (2B) ' + c.gray + `[${cpus} vCPUs, CUDA]` + c.reset);
-    console.log(c.green + '    ████████     ' + c.reset + c.white + 'Cloud Reasoner: ' + c.reset + c.green + '● ' + cloudLabel + c.reset);
-    console.log(c.green + '   ███    ███    ' + c.reset + c.white + 'Airgap Status:  ' + c.reset + c.green + '0.00% Private Entropy Leakage [Verified]' + c.reset);
-    console.log(c.green + '  ▄██      ██▄   ' + c.reset + c.white + 'Proxy Gateway:  ' + c.reset + c.cyan + `http://127.0.0.1:${options.port || 8080}/v1` + c.reset);
-    console.log(c.gray + '────────────────────────────────────────────────────────────────────────────' + c.reset);
+    console.log(c.green + '     ▄▄        ' + c.reset + c.bold + c.white + 'ALIAS AI ' + c.reset + c.gray + 'v0.1.0 (Airgap Gateway)' + c.reset);
+    console.log(c.green + '    ████       ' + c.reset + c.white + 'Enclave: ' + c.reset + c.green + 'Google Gemma 2 ' + c.reset + c.gray + '[CUDA]' + c.reset);
+    console.log(c.green + '   ██  ██      ' + c.reset + c.white + 'Model:   ' + c.reset + c.green + cloudLabel + c.reset);
+    console.log(c.green + '  ████████     ' + c.reset + c.white + 'Airgap:  ' + c.reset + c.green + '0.00% Leakage ' + c.reset + c.gray + '[Verified]' + c.reset);
+    console.log(c.green + ' ▄██      ██▄  ' + c.reset + c.white + 'Proxy:   ' + c.reset + c.cyan + `http://127.0.0.1:${port}/v1` + c.reset);
+    console.log(c.gray + '────────────────────────────────────────────────────' + c.reset);
   }
 
   /**
-   * Run the interactive hardware and model inspection check.
+   * Run the hardware and model inspection check.
    */
   static async run(options = {}) {
     this.printLogo(options);
 
     const ollamaStatus = await this.checkOllama();
 
+    if (options.verbose) {
+      if (ollamaStatus.running && ollamaStatus.hasGemma) {
+        console.log(`\x1b[32m[✓] Neural NER:\x1b[0m ${ollamaStatus.gemmaModel} on Ollama (CUDA active)`);
+      } else {
+        console.log(`\x1b[90m[i] Sanitizer:\x1b[0m High-Speed Regex Engine (0ms overhead)`);
+      }
+    }
+
     if (ollamaStatus.running && ollamaStatus.hasGemma) {
-      console.log(`\x1b[32m[✓] Local Neural Model:\x1b[0m Detected \x1b[1m${ollamaStatus.gemmaModel}\x1b[0m on Ollama`);
-      console.log(`\x1b[90m    Extraction Mode: Hybrid (Gemma 2 Neural NER + Zero-Latency Regex Engine)\x1b[0m\n`);
       return { extractionMode: 'hybrid', model: ollamaStatus.gemmaModel };
     }
-
-    if (ollamaStatus.running && !ollamaStatus.hasGemma) {
-      console.log(`\x1b[33m[!] Local Ollama Detected:\x1b[0m Running on http://127.0.0.1:11434`);
-      console.log(`\x1b[90m    Installed Models: ${ollamaStatus.models.length > 0 ? ollamaStatus.models.join(', ') : 'None'}\x1b[0m`);
-      console.log(`\x1b[36m[i] Recommendation:\x1b[0m For enhanced semantic entity extraction, install Gemma 2:`);
-      console.log(`\x1b[1m    ollama run gemma2:2b\x1b[0m\n`);
-      console.log(`\x1b[32m[✓] Active Sanitizer:\x1b[0m Deterministic Regex Engine (0ms latency, 100% rule coverage)\n`);
-      return { extractionMode: 'deterministic', model: null };
-    }
-
-    // Ollama not running
-    console.log(`\x1b[90m[i] Local Ollama:\x1b[0m Not running on port 11434`);
-    console.log(`\x1b[32m[✓] Active Sanitizer:\x1b[0m High-Speed Local Regex Engine (0ms overhead, zero memory footprint)`);
-    console.log(`\x1b[90m    Optional: Install Ollama (https://ollama.com) & run 'ollama run gemma2:2b' for local neural NER.\x1b[0m\n`);
 
     return { extractionMode: 'deterministic', model: null };
   }

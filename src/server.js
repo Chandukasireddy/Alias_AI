@@ -57,6 +57,7 @@ class ProxyServer {
 
     this.rehydrate = Boolean(options.rehydrate || process.env.ALIAS_REHYDRATE === 'true');
     this.enableGemma = Boolean(options.gemma || options.hybrid || process.env.ALIAS_GEMMA === 'true');
+    this.quiet = Boolean(options.quiet !== undefined ? options.quiet : !options.verbose);
     this.aliaser = new AliasingEngine();
 
     this.stats = {
@@ -330,18 +331,25 @@ API Key: (Your real OpenAI/NVIDIA API Key, or any token)</pre>
         this.stats.secretsSanitized += entities.length;
         this.stats.lastRequestTime = new Date().toISOString();
 
-        // Terminal Audit Output
-        const timeStr = new Date().toTimeString().split(' ')[0];
-        console.log(`\x1b[90m[${timeStr}]\x1b[0m \x1b[1mPOST /v1/chat/completions\x1b[0m \x1b[90m(stream: ${isStream})\x1b[0m`);
-        
-        if (entities.length > 0) {
-          console.log(`  \x1b[33m🛡️  Airgapped ${entities.length} sensitive secret(s):\x1b[0m`);
-          entities.forEach(ent => {
-            console.log(`     • \x1b[36m${ent.type.padEnd(16)}\x1b[0m -> \x1b[32m${ent.alias}\x1b[0m \x1b[90m(${ent.original.slice(0, 4)}...${ent.original.slice(-4)})\x1b[0m`);
-          });
-          console.log(`  \x1b[32m✓ Egress Firewall: 0.00% Private Entropy Leakage [VERIFIED]\x1b[0m`);
-        } else {
-          console.log(`  \x1b[90m✓ Clean prompt: 0 secrets detected -> 0.00% leakage\x1b[0m`);
+        // Terminal Audit Output (suppressed if quiet or internal terminal chat)
+        const isInternal = req.headers['x-alias-client'] === 'terminal-chat';
+        if (!this.quiet && !isInternal) {
+          const timeStr = new Date().toTimeString().split(' ')[0];
+          console.log(`\x1b[90m[${timeStr}]\x1b[0m \x1b[1mPOST /v1/chat/completions\x1b[0m \x1b[90m(stream: ${isStream})\x1b[0m`);
+          
+          if (entities.length > 0) {
+            console.log(`  \x1b[33m🛡️  Airgapped ${entities.length} sensitive secret(s):\x1b[0m`);
+            entities.forEach(ent => {
+              console.log(`     • \x1b[36m${ent.type.padEnd(16)}\x1b[0m -> \x1b[32m${ent.alias}\x1b[0m \x1b[90m(${ent.original.slice(0, 4)}...${ent.original.slice(-4)})\x1b[0m`);
+            });
+            console.log(`  \x1b[32m✓ Egress Firewall: 0.00% Private Entropy Leakage [VERIFIED]\x1b[0m`);
+          } else {
+            console.log(`  \x1b[90m✓ Clean prompt: 0 secrets detected -> 0.00% leakage\x1b[0m`);
+          }
+
+          if (this.isNvidia) {
+            console.log(`  \x1b[32m🚀 Cloud Reasoner: NVIDIA NIM [${parsedBody.model || this.nvidiaModel}]\x1b[0m`);
+          }
         }
 
         // 2. Prepare Outbound Sanitized Request
@@ -349,7 +357,6 @@ API Key: (Your real OpenAI/NVIDIA API Key, or any token)</pre>
           if (!parsedBody.model || parsedBody.model.startsWith('gpt-') || parsedBody.model === 'default') {
             parsedBody.model = this.nvidiaModel;
           }
-          console.log(`  \x1b[32m🚀 Cloud Reasoner: NVIDIA NIM [${parsedBody.model}]\x1b[0m`);
         }
 
         parsedBody.messages = sanitizedMessages;
@@ -373,7 +380,14 @@ API Key: (Your real OpenAI/NVIDIA API Key, or any token)</pre>
           forwardHeaders['authorization'] = `Bearer ${process.env.OPENAI_API_KEY.trim()}`;
         }
 
-        const upstreamPath = (targetUrl.pathname.replace(/\/$/, '') || '') + (req.url.startsWith('/v1') ? req.url : '/v1' + req.url);
+        let basePath = targetUrl.pathname.replace(/\/$/, '');
+        let reqPath = req.url;
+        if (basePath.endsWith('/v1') && reqPath.startsWith('/v1')) {
+          reqPath = reqPath.slice(3);
+        } else if (!basePath.endsWith('/v1') && !reqPath.startsWith('/v1')) {
+          reqPath = '/v1' + reqPath;
+        }
+        const upstreamPath = basePath + reqPath;
 
         const upstreamReq = client.request(
           {
@@ -412,10 +426,18 @@ API Key: (Your real OpenAI/NVIDIA API Key, or any token)</pre>
                     if (line.startsWith('data: ') && line !== 'data: [DONE]') {
                       try {
                         const sseJson = JSON.parse(line.slice(6));
-                        if (sseJson.choices && sseJson.choices[0] && sseJson.choices[0].delta && sseJson.choices[0].delta.content) {
-                          const { text, rehydratedCount } = this.aliaser.rehydrateText(sseJson.choices[0].delta.content);
-                          sseJson.choices[0].delta.content = text;
-                          this.stats.rehydratedCount += rehydratedCount;
+                        if (sseJson.choices && sseJson.choices[0] && sseJson.choices[0].delta) {
+                          const delta = sseJson.choices[0].delta;
+                          if (delta.content) {
+                            const { text, rehydratedCount } = this.aliaser.rehydrateText(delta.content);
+                            delta.content = text;
+                            this.stats.rehydratedCount += rehydratedCount;
+                          }
+                          if (delta.reasoning_content) {
+                            const { text, rehydratedCount } = this.aliaser.rehydrateText(delta.reasoning_content);
+                            delta.reasoning_content = text;
+                            this.stats.rehydratedCount += rehydratedCount;
+                          }
                         }
                         res.write(`data: ${JSON.stringify(sseJson)}\n`);
                       } catch {

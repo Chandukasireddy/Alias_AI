@@ -12,6 +12,7 @@ const net = require('net');
 const SetupWizard = require('./wizard');
 const ProxyServer = require('./server');
 const AliasingEngine = require('./aliaser');
+const InteractiveChat = require('./chat');
 
 class CLI {
   static parseArgs(argv) {
@@ -27,7 +28,9 @@ class CLI {
       upstream: null,
       rehydrate: false,
       gemma: false,
-      noWizard: false
+      noWizard: false,
+      noChat: false,
+      verbose: false
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -42,6 +45,10 @@ class CLI {
         options.gemma = true;
       } else if (arg === '--no-wizard') {
         options.noWizard = true;
+      } else if (arg === '--no-chat' || arg === '--daemon' || arg === '--proxy') {
+        options.noChat = true;
+      } else if (arg === '-v' || arg === '--verbose') {
+        options.verbose = true;
       }
     }
 
@@ -53,6 +60,12 @@ class CLI {
 
     switch (command) {
       case 'start':
+      case 'chat':
+        await this.cmdStart(options);
+        break;
+      case 'proxy':
+      case 'daemon':
+        options.noChat = true;
         await this.cmdStart(options);
         break;
       case 'doctor':
@@ -83,10 +96,10 @@ class CLI {
   }
 
   /**
-   * Start the proxy server.
+   * Start the proxy server & interactive chat.
    */
   static async cmdStart(options) {
-    // 1. Run Setup Wizard
+    // 1. Run Setup Wizard (displays resize-proof compact logo)
     if (!options.noWizard) {
       const wizardRes = await SetupWizard.run(options);
       if (wizardRes && wizardRes.extractionMode === 'hybrid') {
@@ -94,26 +107,34 @@ class CLI {
       }
     }
 
-    // 2. Instantiate and launch Proxy
-    const server = new ProxyServer(options);
+    // 2. Instantiate and launch Proxy silently in background
+    const server = new ProxyServer({
+      ...options,
+      quiet: !options.verbose
+    });
     
     try {
       await server.start();
-      console.log(`\x1b[32m✔ Gateway Active:\x1b[0m Listening transparently on \x1b[1m\x1b[36mhttp://${server.host}:${server.port}\x1b[0m`);
-      console.log(`\x1b[90m  Streaming Mode: ${server.rehydrate ? '\x1b[33mBuffered Re-hydration (-r)\x1b[90m' : '\x1b[32mZero-Latency Pass-Through (Placeholders)\x1b[90m'}\x1b[0m`);
-      console.log(`\x1b[90m  Dashboard:      http://${server.host}:${server.port}/\x1b[0m\n`);
-      console.log(`\x1b[37m[Ready for Requests]\x1b[0m Set OPENAI_BASE_URL="http://${server.host}:${server.port}/v1" in Cursor or terminal.\n`);
 
-      // Graceful shutdown
-      const shutdown = async () => {
-        console.log('\n\x1b[90mShutting down Alias AI gateway...\x1b[0m');
-        await server.stop();
-        console.log('\x1b[32mGateway stopped safely. Session vault purged.\x1b[0m');
-        process.exit(0);
-      };
+      if (options.noChat) {
+        console.log(`\x1b[32m✔ Gateway Active:\x1b[0m Listening transparently on \x1b[1m\x1b[36mhttp://${server.host}:${server.port}\x1b[0m`);
+        console.log(`\x1b[90m  Streaming Mode: ${server.rehydrate ? 'Local Re-hydration (-r)' : 'Zero-Latency Pass-Through (Placeholders)'}\x1b[0m`);
+        console.log(`\x1b[90m  Dashboard:      http://${server.host}:${server.port}/\x1b[0m\n`);
 
-      process.on('SIGINT', shutdown);
-      process.on('SIGTERM', shutdown);
+        const shutdown = async () => {
+          console.log('\n\x1b[90mShutting down Alias AI gateway...\x1b[0m');
+          await server.stop();
+          console.log('\x1b[32m✔ Gateway stopped safely. Session vault purged.\x1b[0m\n');
+          process.exit(0);
+        };
+
+        process.on('SIGINT', shutdown);
+        process.on('SIGTERM', shutdown);
+        return;
+      }
+
+      // 3. Launch interactive terminal chat directly in the SAME terminal
+      InteractiveChat.start(server, options);
 
     } catch (err) {
       process.exit(1);
@@ -294,12 +315,13 @@ class CLI {
 \x1b[1m\x1b[37mAlias AI — Zero-Knowledge Privacy Airgap Gateway\x1b[0m
 
 \x1b[1mUSAGE:\x1b[0m
-  alias-ai <command> [options]
-  npx alias-ai start [options]
+  alias-ai [command] [options]
 
 \x1b[1mCOMMANDS:\x1b[0m
-  start               Start the local transparent proxy gateway (default)
-  sanitize "<text>"   Inspect what the cloud sees vs what stays local for any prompt
+  start               Start airgap proxy & launch interactive chat (default)
+  chat                Launch interactive chat session directly in terminal
+  proxy               Run headless background proxy without terminal chat
+  sanitize "<text>"   Inspect what cloud sees vs what stays local for any prompt
   doctor              Run system checks (Node, Ollama, Gemma 2, ports, benchmark)
   test                Run airgap self-test verifying 0.00% private entropy leakage
   config              Print copy-paste setup configs for Cursor, Python, and terminal
@@ -307,10 +329,10 @@ class CLI {
 
 \x1b[1mOPTIONS:\x1b[0m
   -p, --port <number> Local port to bind (default: 8080)
-  -u, --upstream <url> Target LLM upstream URL (default: https://api.openai.com)
-  -r, --rehydrate     Enable local token re-hydration (default: false, pass-through streaming)
+  -r, --rehydrate     Enable local token re-hydration (default: false, pass-through)
   -g, --gemma         Enable Google Gemma 2 local neural NER on Ollama
-  --no-wizard         Skip first-run hardware & local model check
+  --no-chat           Run as background proxy without interactive terminal chat
+  --verbose           Show verbose network and routing diagnostics
 `);
   }
 }
