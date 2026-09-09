@@ -1,4 +1,4 @@
-﻿import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -71,7 +71,7 @@ export class App implements OnInit {
   auditCertificate = signal<ComplianceCertificate | null>(null);
   activeTab = signal<'cockpit' | 'audit' | 'architecture'>('cockpit');
 
-  private backendUrl = 'http://localhost:8000';
+  private backendUrl = typeof window !== 'undefined' && window.location.port === '4200' ? 'http://localhost:8000' : '';
 
   ngOnInit() {
     this.selectScenario(this.scenarios[0].id);
