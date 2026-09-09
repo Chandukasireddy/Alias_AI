@@ -5,6 +5,7 @@
  * Provides frictionless setup guidance for zero-latency local neural extraction.
  */
 
+require('./env');
 const http = require('http');
 const os = require('os');
 const readline = require('readline');

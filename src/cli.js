@@ -8,6 +8,7 @@
  *   alias-ai config
  */
 
+require('./env');
 const net = require('net');
 const SetupWizard = require('./wizard');
 const ProxyServer = require('./server');

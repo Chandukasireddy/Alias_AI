@@ -5,6 +5,7 @@
  * Universal CLI Entrypoint
  */
 
+require('../src/env');
 const CLI = require('../src/cli');
 
 CLI.run(process.argv).catch(err => {
