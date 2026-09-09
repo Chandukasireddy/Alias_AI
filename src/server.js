@@ -9,13 +9,52 @@
 const http = require('http');
 const https = require('https');
 const url = require('url');
+const fs = require('fs');
+const path = require('path');
 const AliasingEngine = require('./aliaser');
+
+// Lightweight built-in .env auto-loader (zero external dependencies)
+function loadEnvFile() {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx > 0) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          let val = trimmed.slice(eqIdx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (key && val && !process.env[key]) {
+            process.env[key] = val;
+          }
+        }
+      }
+    } catch {}
+  }
+}
+loadEnvFile();
 
 class ProxyServer {
   constructor(options = {}) {
     this.port = parseInt(options.port || process.env.ALIAS_PORT || 8080, 10);
     this.host = options.host || '127.0.0.1';
-    this.upstream = options.upstream || process.env.OPENAI_BASE_URL || 'https://api.openai.com';
+
+    // NVIDIA NIM Upstream Detection:
+    // If NVIDIA_API_KEY is present in .env or environment, automatically default to NVIDIA NIM Nemotron-70B!
+    const hasNvidiaKey = Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY.trim());
+    const defaultUpstream = hasNvidiaKey 
+      ? (process.env.CLOUD_NIM_ENDPOINT || 'https://integrate.api.nvidia.com/v1')
+      : (process.env.OPENAI_BASE_URL || 'https://api.openai.com');
+
+    this.upstream = options.upstream || defaultUpstream;
+    this.isNvidia = this.upstream.includes('nvidia.com') || hasNvidiaKey;
+    this.nvidiaModel = process.env.CLOUD_REASONING_MODEL || 'meta/llama-3.1-nemotron-70b-instruct';
+
     this.rehydrate = Boolean(options.rehydrate || process.env.ALIAS_REHYDRATE === 'true');
     this.enableGemma = Boolean(options.gemma || options.hybrid || process.env.ALIAS_GEMMA === 'true');
     this.aliaser = new AliasingEngine();
@@ -306,6 +345,13 @@ API Key: (Your real OpenAI/NVIDIA API Key, or any token)</pre>
         }
 
         // 2. Prepare Outbound Sanitized Request
+        if (this.isNvidia) {
+          if (!parsedBody.model || parsedBody.model.startsWith('gpt-') || parsedBody.model === 'default') {
+            parsedBody.model = this.nvidiaModel;
+          }
+          console.log(`  \x1b[32m🚀 Cloud Reasoner: NVIDIA NIM [${parsedBody.model}]\x1b[0m`);
+        }
+
         parsedBody.messages = sanitizedMessages;
         const outboundPayload = Buffer.from(JSON.stringify(parsedBody), 'utf8');
 
@@ -320,9 +366,11 @@ API Key: (Your real OpenAI/NVIDIA API Key, or any token)</pre>
         forwardHeaders['content-type'] = 'application/json';
         forwardHeaders['content-length'] = outboundPayload.length;
 
-        // Ensure authorization is present if provided in env
-        if (!forwardHeaders['authorization'] && process.env.OPENAI_API_KEY) {
-          forwardHeaders['authorization'] = `Bearer ${process.env.OPENAI_API_KEY}`;
+        // Ensure authorization is present (prioritizing NVIDIA API key for NIM or OPENAI_API_KEY)
+        if (this.isNvidia && process.env.NVIDIA_API_KEY) {
+          forwardHeaders['authorization'] = `Bearer ${process.env.NVIDIA_API_KEY.trim()}`;
+        } else if (!forwardHeaders['authorization'] && process.env.OPENAI_API_KEY) {
+          forwardHeaders['authorization'] = `Bearer ${process.env.OPENAI_API_KEY.trim()}`;
         }
 
         const upstreamPath = (targetUrl.pathname.replace(/\/$/, '') || '') + (req.url.startsWith('/v1') ? req.url : '/v1' + req.url);
