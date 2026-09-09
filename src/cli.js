@@ -100,12 +100,6 @@ class CLI {
     try {
       await server.start();
       console.log(`\x1b[32m✔ Gateway Active:\x1b[0m Listening transparently on \x1b[1m\x1b[36mhttp://${server.host}:${server.port}\x1b[0m`);
-      if (server.isNvidia) {
-        console.log(`\x1b[32m  Cloud Reasoner: NVIDIA NIM [${server.nvidiaModel}]\x1b[0m`);
-        console.log(`\x1b[90m  Upstream API:   ${server.upstream}\x1b[0m`);
-      } else {
-        console.log(`\x1b[90m  Upstream LLM:   ${server.upstream}\x1b[0m`);
-      }
       console.log(`\x1b[90m  Streaming Mode: ${server.rehydrate ? '\x1b[33mBuffered Re-hydration (-r)\x1b[90m' : '\x1b[32mZero-Latency Pass-Through (Placeholders)\x1b[90m'}\x1b[0m`);
       console.log(`\x1b[90m  Dashboard:      http://${server.host}:${server.port}/\x1b[0m\n`);
       console.log(`\x1b[37m[Ready for Requests]\x1b[0m Set OPENAI_BASE_URL="http://${server.host}:${server.port}/v1" in Cursor or terminal.\n`);
@@ -130,7 +124,8 @@ class CLI {
    * System health check & diagnostic audit.
    */
   static async cmdDoctor(options) {
-    console.log('\x1b[1m\x1b[37m=== Alias AI System Doctor ===\x1b[0m\n');
+    SetupWizard.printLogo(options);
+    console.log('\x1b[1m\x1b[37mSystem Diagnostics & Airgap Health Check:\x1b[0m\n');
 
     // 1. Node.js check
     const nodeVer = process.version;
@@ -265,7 +260,8 @@ class CLI {
       return;
     }
 
-    console.log('\x1b[1m\x1b[37m=== Alias AI Airgap Inspection ===\x1b[0m\n');
+    SetupWizard.printLogo(options);
+    console.log('\x1b[1m\x1b[37mReal-Time Airgap Inspection (RAM vs Cloud Wire):\x1b[0m\n');
     const aliaser = new AliasingEngine();
     const res = await aliaser.sanitizeMessagesAsync([{ role: 'user', content: text }], options.gemma);
 
