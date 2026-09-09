@@ -7,6 +7,14 @@
     "alias": "./bin/alias-ai.js"
   },
   "main": "./src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chandukasireddy/Alias_AI.git"
+  },
+  "homepage": "https://alias-ai-pi.vercel.app",
+  "bugs": {
+    "url": "https://github.com/Chandukasireddy/Alias_AI/issues"
+  },
   "scripts": {
     "start": "node ./bin/alias-ai.js start",
     "doctor": "node ./bin/alias-ai.js doctor",

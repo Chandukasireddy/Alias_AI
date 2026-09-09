@@ -25,8 +25,9 @@ interface Scenario {
   styleUrl: './app.css'
 })
 export class App implements OnInit {
-  // Navigation
-  activeTab = signal<'cursor' | 'python' | 'langchain' | 'terminal'>('cursor');
+  // Navigation & Tabs
+  activeTab = signal<'cursor' | 'python' | 'langchain' | 'terminal' | 'claude'>('cursor');
+  activeTerminalTab = signal<'chat' | 'doctor' | 'test' | 'sanitize'>('chat');
   copiedInstall = signal<boolean>(false);
   copiedSnippet = signal<boolean>(false);
 
@@ -37,75 +38,98 @@ $ npx alias-ai start
 # Toggle "Override OpenAI Base URL" and enter:
 http://127.0.0.1:8080/v1
 
-# Cursor now routes all requests through your sovereign local airgap!`;
+# Cursor now routes all prompts & agent actions through your local airgap!`;
 
   readonly pythonSnippet = `from openai import OpenAI
 
-# Point base_url to local proxy
+# Direct all traffic to your sovereign local airgap
 client = OpenAI(
     base_url="http://127.0.0.1:8080/v1",
-    api_key="local-proxy"
+    api_key="alias-local-token"
 )
 
-# Secrets are stripped before leaving your machine
+# Secrets are stripped into local RAM before leaving your machine
 response = client.chat.completions.create(
-    model="meta/llama-3.1-nemotron-70b-instruct",
-    messages=[{"role": "user", "content": "Analyze VIN WDB2110761A123456"}]
+    model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    messages=[
+        {
+            "role": "user",
+            "content": "Analyze VIN WDB2110761A123456 and bank IBAN DE89370400440532013000."
+        }
+    ]
 )
 print(response.choices[0].message.content)`;
 
   readonly langchainSnippet = `from langchain_openai import ChatOpenAI
 
-# Point LangChain to Alias AI local airgap
+# Point LangChain directly to Alias AI local airgap
 llm = ChatOpenAI(
     base_url="http://127.0.0.1:8080/v1",
-    api_key="local-proxy",
-    model="meta/llama-3.1-nemotron-70b-instruct"
+    api_key="alias-local-token",
+    model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
 )
 
-response = llm.invoke("Evaluate German IBAN DE89 3704 0044 0532 0130 00")
+response = llm.invoke("Draft bill of sale for VIN WDB2110761A123456 and IBAN DE89 3704 0044 0532 0130 00")
 print(response.content)`;
 
   readonly terminalSnippet = `# Set environment variable in your terminal
 export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
+export OPENAI_API_KEY="alias-local-token"
 
-# Any CLI tool or curl automatically routes through Alias AI
+# Any CLI tool, Python script, or cURL automatically routes through Alias AI:
 curl $OPENAI_BASE_URL/chat/completions \\
   -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $OPENAI_API_KEY" \\
   -d '{
-    "model": "nvidia/nemotron-70b",
+    "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
     "messages": [{"role": "user", "content": "Database secret postgres://admin:Secr3t@10.0.4.15"}]
   }'`;
 
-  // Scenarios
+  readonly claudeSnippet = `# Terminal 1: Launch Alias AI in background
+alias-ai start
+
+# Terminal 2: Point Claude Code or Aider to the local airgap
+export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
+export OPENAI_API_KEY="alias-local-token"
+
+claude`;
+
+  // Realistic Consumer & Enterprise Scenarios
   readonly scenarios: Scenario[] = [
     {
-      id: 'automotive',
-      title: 'Mercedes-Benz Telematics & Battery DTC',
+      id: 'car_sale',
+      title: 'Used Car Sales Contract (Kaufvertrag)',
       icon: '🚗',
-      category: 'Industrial IoT & Automotive (ISO 26262)',
-      prompt: `Diagnostic Report for Mercedes-Benz Mobility:\nChassis VIN: WDB2110761A123456\nAssembly Plant: Factory 56 (Sindelfingen)\nEngineer: Dr. Heinrich Weber\nCAN-Bus DTC Code: P0A80 (High Voltage Battery Pack Anomaly)\nNotes: Module #4 cell fluctuating at 3.12V vs 3.85V nominal.\nRequest: Analyze root cause and provide repair checklist.`
+      category: 'Automotive & Consumer Commerce (ISO 26262)',
+      prompt: `Draft a legally binding German used car purchase agreement (ADAC Kaufvertrag):\nSeller: Alexander Müller\nSeller IBAN: DE89 3704 0044 0532 0130 00\nBuyer: Chandu Kasireddy\nVehicle VIN: WDB2110761A123456\nModel: Mercedes-Benz E 350 CDI (2018)\nPurchase Price: €14,500.00\nRequest: Validate VIN format and generate bilateral contract terms with zero cloud secret leakage.`
     },
     {
-      id: 'banking',
-      title: 'High-Value SEPA Wire Settlement & AML',
-      icon: '🏦',
-      category: 'Financial Services & Banking (GDPR Art. 25)',
-      prompt: `Wire Risk Evaluation:\nOrigin Account (Deutsche Bank): DE89 3704 0044 0532 0130 00\nAccount Holder: Alexander Müller\nBeneficiary Phone: +49 171 8923451\nAmount: €482,000.00 to offshore supplier\nRequest: Evaluate anti-money laundering indicators and clearance compliance.`
+      id: 'rental_deposit',
+      title: 'Apartment Deposit Return (Mietkaution)',
+      icon: '🏠',
+      category: 'Real Estate & Tenant Rights (GDPR Art. 25)',
+      prompt: `Write a formal German email to landlord Hausverwaltung Schmidt requesting refund of my €1,500 rental deposit:\nTenant: Chandu Kasireddy\nMobile Phone: +49 176 88992211\nPrevious Address: Hauptstraße 42, 10115 Berlin\nDeposit Refund Account: DE89 3704 0044 0532 0130 00\nMove-out Date: 31.01.2026\nRequest: Demand release of escrow deposit within 14 business days according to BGB § 551.`
     },
     {
-      id: 'devops',
-      title: 'GKE Cloud Script with Hardcoded Credentials',
-      icon: '☁️',
-      category: 'Cloud Infrastructure & DevOps',
-      prompt: `DevOps Incident for Project Sovereign:\nAuthor: Sarah Jenkins\nInternal Subnet: 10.0.4.15\nStaging API Key: sk-live-9941a8f912c0048e8912bc\nDB URI: postgres://admin:Secr3tP@ssw0rd@10.0.4.15:5432/fleet_db\nIssue: GKE microservice connection timeout.\nRequest: Refactor to Google Secret Manager and write safe Kubernetes deployment spec.`
+      id: 'flight_refund',
+      title: 'EU261 Flight Delay Claim',
+      icon: '✈️',
+      category: 'Consumer Aviation & SEPA Banking',
+      prompt: `Compose an EU Regulation 261/2004 flight delay compensation claim to Lufthansa:\nPassenger: Dr. Heinrich Weber\nBooking Reference: LH-948271A\nFlight: LH2042 Berlin (BER) to Munich (MUC)\nDelay: 4 hours 45 minutes\nCompensation Due: €250.00\nRemittance IBAN: DE12 5001 0517 0648 4898 90\nRequest: Generate legal claim citing CJEU Sturgeon precedent.`
+    },
+    {
+      id: 'devops_secret',
+      title: 'Cloud DevOps Security Remediation',
+      icon: '🛡️',
+      category: 'Cloud Infrastructure & Secret Governance',
+      prompt: `DevOps Security Audit for GKE Microservice:\nAuthor: Sarah Jenkins\nInternal Subnet: 10.0.4.15\nStaging API Key: sk-live-9941a8f912c0048e8912bc\nDatabase URI: postgres://admin:Secr3tP@ssw0rd@10.0.4.15:5432/fleet_db\nIssue: Plaintext secrets embedded in Kubernetes Deployment manifest.\nRequest: Refactor to Google Secret Manager and write safe sealed secret spec.`
     }
   ];
 
-  selectedScenarioId = signal<string>('automotive');
+  selectedScenarioId = signal<string>('car_sale');
   customInput = signal<string>('');
   isProcessing = signal<boolean>(false);
-  rehydrateEnabled = signal<boolean>(false); // Dehydration / Placeholder is default!
+  rehydrateEnabled = signal<boolean>(false); // Dehydration / Placeholder is default
   streamTokens = signal<number>(0);
 
   // Computed extracted entities (Runs 100% client-side for zero latency)
@@ -116,20 +140,20 @@ curl $OPENAI_BASE_URL/chat/completions \\
     const entries: VaultEntry[] = [];
     let count = 1;
 
-    // 1. VIN Numbers (ISO 3779 17-char)
+    // 1. VIN Numbers (ISO 3779 17-character)
     const vinMatches = text.match(/\b([A-HJ-NPR-Z0-9]{17})\b/g);
     if (vinMatches) {
       for (const vin of Array.from(new Set(vinMatches))) {
-        entries.push({ id: `vin-${count}`, type: 'VEHICLE_VIN', original: vin, alias: `<ALIAS_VIN_${count}>` });
+        entries.push({ id: `vin-${count}`, type: 'VEHICLE_VIN', original: vin, alias: `<ALIAS_VEHICLE_VIN_${count}>` });
         count++;
       }
     }
 
-    // 2. German IBAN
+    // 2. German & EU IBANs
     const ibanMatches = text.match(/\b(DE\d{2}[\s]?(?:\d{4}[\s]?){4}\d{2})\b/g);
     if (ibanMatches) {
       for (const iban of Array.from(new Set(ibanMatches))) {
-        entries.push({ id: `iban-${count}`, type: 'GERMAN_IBAN', original: iban, alias: `<ALIAS_IBAN_${count}>` });
+        entries.push({ id: `iban-${count}`, type: 'GERMAN_IBAN', original: iban, alias: `<ALIAS_GERMAN_IBAN_${count}>` });
         count++;
       }
     }
@@ -161,8 +185,44 @@ curl $OPENAI_BASE_URL/chat/completions \\
       }
     }
 
-    // 6. German Names (Dr. Heinrich Weber, Alexander Müller, Sarah Jenkins)
-    const nameMatches = text.match(/\b(Dr\.\s+[A-Z][a-z]+\s+[A-Z][a-z]+|Alexander\s+Müller|Sarah\s+Jenkins)\b/g);
+    // 6. Phone Numbers
+    const phoneMatches = text.match(/\b(\+49[\s\d\-]{8,15}|01[5-7]\d[\s\d\-]{6,10})\b/g);
+    if (phoneMatches) {
+      for (const phone of Array.from(new Set(phoneMatches))) {
+        entries.push({ id: `phone-${count}`, type: 'PHONE_NUMBER', original: phone, alias: `<ALIAS_PHONE_${count}>` });
+        count++;
+      }
+    }
+
+    // 7. Addresses
+    const addressMatches = text.match(/\b(Hauptstraße\s+\d+,\s+\d{5}\s+Berlin)\b/g);
+    if (addressMatches) {
+      for (const addr of Array.from(new Set(addressMatches))) {
+        entries.push({ id: `addr-${count}`, type: 'STREET_ADDRESS', original: addr, alias: `<ALIAS_ADDRESS_${count}>` });
+        count++;
+      }
+    }
+
+    // 8. Organizations
+    const orgMatches = text.match(/\b(Hausverwaltung\s+Schmidt)\b/g);
+    if (orgMatches) {
+      for (const org of Array.from(new Set(orgMatches))) {
+        entries.push({ id: `org-${count}`, type: 'ORGANIZATION', original: org, alias: `<ALIAS_ORGANIZATION_${count}>` });
+        count++;
+      }
+    }
+
+    // 9. Booking References
+    const bookMatches = text.match(/\b(LH-[A-Z0-9]{6,8})\b/g);
+    if (bookMatches) {
+      for (const b of Array.from(new Set(bookMatches))) {
+        entries.push({ id: `book-${count}`, type: 'BOOKING_REF', original: b, alias: `<ALIAS_BOOKING_REF_${count}>` });
+        count++;
+      }
+    }
+
+    // 10. Person Names
+    const nameMatches = text.match(/\b(Alexander\s+Müller|Chandu\s+Kasireddy|Dr\.\s+Heinrich\s+Weber|Sarah\s+Jenkins)\b/g);
     if (nameMatches) {
       for (const name of Array.from(new Set(nameMatches))) {
         entries.push({ id: `name-${count}`, type: 'PERSON_NAME', original: name, alias: `<ALIAS_PERSON_${count}>` });
@@ -207,16 +267,77 @@ curl $OPENAI_BASE_URL/chat/completions \\
     this.simulatedResponse.set('');
     this.streamTokens.set(0);
 
-    // Generate output with aliases
     let template = '';
     const id = this.selectedScenarioId();
 
-    if (id === 'automotive') {
-      template = `### High-Voltage Diagnostics Report (Nemotron-70B on GKE)\n\n1. Target Unit: <ALIAS_VIN_1>\n2. Plant: Factory 56 | Diagnostics Lead: <ALIAS_PERSON_1>\n3. Root Cause Analysis: Cell differential on Module #4 (3.12V vs 3.85V) confirms high internal impedance under CAN DTC P0A80.\n4. Remediation: Isolate HV bus contactors; replace cell group #4; verify torque to 8.5 Nm (ISO 26262).\n\nStatus: Analysis completed without exposing vehicle VIN or engineer identity.`;
-    } else if (id === 'banking') {
-      template = `### SEPA Transaction Clearance Audit (Nemotron-70B on GKE)\n\n1. Sender Account: <ALIAS_IBAN_1>\n2. Account Holder: <ALIAS_PERSON_1>\n3. AML Evaluation: Transaction value €482,000.00 exceeds standard threshold. Beneficiary offshore routing requires enhanced due diligence.\n4. Verdict: Hold settlement until secondary KYC authorization.\n\nStatus: Clearance evaluated under GDPR Article 25 without cloud PII exposure.`;
+    if (id === 'car_sale') {
+      template = `### Bilateral ADAC Used Car Purchase Contract (Kaufvertrag)
+
+1. Contracting Parties:
+   - Seller: <ALIAS_PERSON_1>
+   - Buyer: <ALIAS_PERSON_2>
+
+2. Vehicle Identification & Specifications:
+   - Chassis VIN: <ALIAS_VEHICLE_VIN_1>
+   - Agreed Purchase Price: €14,500.00
+
+3. Bank Wire Settlement:
+   - Wire settlement to Seller IBAN: <ALIAS_GERMAN_IBAN_1>
+   - Due upon vehicle handover and title transfer.
+
+4. Legal Warranty & Defect Disclaimer:
+   - The vehicle is sold under exclusion of statutory warranty for physical defects ("gekauft wie gesehen"), pursuant to BGB § 444, except in cases of fraudulent concealment.
+
+Airgap Audit: Bilateral agreement drafted by NVIDIA Nemotron without exposing the VIN, German IBAN, or individual names to the cloud.`;
+    } else if (id === 'rental_deposit') {
+      template = `### Formal Notice: Demand for Rental Deposit Release (Mietkaution)
+
+To: <ALIAS_ORGANIZATION_1>
+Subject: Rückzahlung der Mietkaution für Wohnung <ALIAS_ADDRESS_1>
+
+Sehr geehrte Damen und Herren,
+
+hiermit fordere ich, <ALIAS_PERSON_1>, die vollständige Auszahlung der hinterlegten Mietkaution in Höhe von 1.500,00 € für das zum 31.01.2026 ordnungsgemäß übergebene Mietobjekt in <ALIAS_ADDRESS_1>.
+
+Das Übergabeprotokoll wurde mängelfrei unterzeichnet. Bitte überweisen Sie den Betrag nebst aufgelaufener Zinsen innerhalb von 14 Werktagen auf mein Bankkonto:
+IBAN: <ALIAS_GERMAN_IBAN_1>
+
+Bei Rückfragen erreichen Sie mich telefonisch unter <ALIAS_PHONE_1>.
+
+Mit freundlichen Grüßen,
+<ALIAS_PERSON_1>
+
+Airgap Audit: Legal demand prepared under GDPR Art. 25 without leaking postal address, phone, or bank account.`;
+    } else if (id === 'flight_refund') {
+      template = `### Passenger Rights EU261/2004 Delay Compensation Claim
+
+To: Deutsche Lufthansa AG Customer Relations
+Booking Reference: <ALIAS_BOOKING_REF_1>
+Passenger: <ALIAS_PERSON_1>
+
+Subject: Statutory Compensation Claim under Regulation (EC) No 261/2004
+
+Flight LH2042 arrived with a verified delay of 4 hours 45 minutes, exceeding the 3-hour statutory threshold affirmed by the Court of Justice of the European Union in Sturgeon (Joined Cases C-402/07 & C-432/07).
+
+Please transfer the statutory compensation of €250.00 within 14 calendar days to:
+Beneficiary: <ALIAS_PERSON_1>
+Bank Account (SEPA): <ALIAS_GERMAN_IBAN_1>
+
+Airgap Audit: Passenger flight compensation claim generated with passenger credentials and bank accounts strictly sovereign.`;
     } else {
-      template = `### GKE Cloud Secret Remediation (Nemotron-70B on GKE)\n\n1. Flagged Credential: <ALIAS_API_KEY_1>\n2. Flagged Database: <ALIAS_DB_URI_1>\n3. Remediation Step: Extract credentials from Kubernetes manifest and mount via Google Cloud Secret Manager.\n4. Network Hardening: Apply NetworkPolicy to restrict subnet <ALIAS_INTERNAL_IP_1>.\n\nStatus: Secure deployment generated with zero credentials leaked to cloud.`;
+      template = `### GKE Cloud Infrastructure Secret Remediation Plan
+
+1. Flagged Hardcoded API Credential: <ALIAS_API_KEY_1>
+2. Flagged Database Connection: <ALIAS_DB_URI_1>
+3. Remediation Actions:
+   - Immediately revoke compromised API credentials in upstream console.
+   - Provision Google Cloud Secret Manager resource:
+     \`gcloud secrets create db-secret --data-file=credentials.json\`
+   - Mount credentials into pod via Kubernetes External Secrets Operator (ESO).
+4. Network Isolation:
+   - Apply Kubernetes NetworkPolicy to restrict ingress on internal node <ALIAS_INTERNAL_IP_1>.
+
+Airgap Audit: Hardened Kubernetes deployment spec generated with 0.00% secrets leaked to the LLM.`;
     }
 
     // Apply or withhold re-hydration
@@ -226,7 +347,7 @@ curl $OPENAI_BASE_URL/chat/completions \\
       }
     }
 
-    // Stream simulation
+    // Stream simulation token-by-token
     const words = template.split(' ');
     let currentIdx = 0;
     const interval = setInterval(() => {
@@ -238,7 +359,7 @@ curl $OPENAI_BASE_URL/chat/completions \\
         clearInterval(interval);
         this.isProcessing.set(false);
       }
-    }, 25);
+    }, 20);
   }
 
   copyInstallCommand() {

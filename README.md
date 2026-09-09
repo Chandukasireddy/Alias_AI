@@ -1,137 +1,187 @@
-# 🛡️ ALIAS AI: Zero-Knowledge Privacy Airgap Gateway for LLMs & AI Coding Agents
+<div align="center">
+  <a href="https://alias-ai-pi.vercel.app">
+    <img src="./assets/logo.svg" width="92" height="92" alt="Alias AI Logo" />
+  </a>
+  <h1>Alias AI</h1>
+  <p><strong>Zero-Knowledge Local Privacy Airgap Gateway for AI Coding Agents & LLMs</strong></p>
+  <p>
+    <a href="https://alias-ai-pi.vercel.app"><strong>Explore Live Documentation & In-Browser Simulator »</strong></a>
+  </p>
 
-[![Live Docs](https://img.shields.io/badge/Live%20Docs-alias--ai--pi.vercel.app-white?style=for-the-badge&logo=vercel&logoColor=black)](https://alias-ai-pi.vercel.app)
-[![NVIDIA GTC Berlin 2026](https://img.shields.io/badge/NVIDIA%20GTC-Berlin%202026%20Submission-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://www.nvidia.com/gtc/)
-[![NPM Package](https://img.shields.io/badge/npm-alias--ai-CB3837?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/alias-ai)
-[![Google Gemma 2](https://img.shields.io/badge/Edge%20Sanitizer-Google%20Gemma%202-EA4335?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/gemma)
-[![NVIDIA Nemotron](https://img.shields.io/badge/Cloud%20Reasoner-Nemotron--70B-000000?style=for-the-badge&logo=nvidia&logoColor=76B900)](https://build.nvidia.com/)
-[![Compliance](https://img.shields.io/badge/EU%20AI%20Act-Article%2014%20%26%20GDPR%20Art.%2025-blue?style=for-the-badge)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](LICENSE)
-
-> **"Enterprises cannot sacrifice data sovereignty for cloud intelligence. The future belongs to hybrid architectures where local edge models preserve privacy while frontier cloud clusters deliver breakthrough reasoning."**  
-> — Operationalizing *The Sensitivity vs. Capability Matrix* (inspired by Dr. Jörg Storm, former Global Head of IT Infrastructure, Mercedes-Benz Mobility).
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square" alt="License"></a>
+    <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D%2018.0.0-green.svg?style=flat-square&logo=node.js&logoColor=white" alt="Node.js"></a>
+    <img src="https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Stdlib)-blueviolet.svg?style=flat-square" alt="Zero Dependencies">
+    <a href="https://ai.google.dev/gemma"><img src="https://img.shields.io/badge/Local%20Enclave-Google%20Gemma%202%20[CUDA]-EA4335.svg?style=flat-square&logo=google&logoColor=white" alt="Gemma 2"></a>
+    <a href="https://build.nvidia.com"><img src="https://img.shields.io/badge/Cloud%20Reasoner-NVIDIA%20Nemotron-76B900.svg?style=flat-square&logo=nvidia&logoColor=white" alt="NVIDIA Nemotron"></a>
+    <img src="https://img.shields.io/badge/Airgap%20Leakage-0.00%25%20[Verified]-success.svg?style=flat-square" alt="0.00% Leakage">
+  </p>
+</div>
 
 ---
 
-## ⚡ Quick Start (Instant Zero-Friction Airgap)
+## 💡 What is Alias AI?
 
-Run the transparent local proxy on your machine in one command (no complex setup required):
+Every day, developers and everyday users paste **automotive VINs, German IBANs, production database strings, and API keys** into cloud LLMs to draft emails, write scripts, and debug code.
+
+**Alias AI** is an open-source, local-first privacy gateway that sits transparently between your workstation and frontier cloud models. Before any network packet leaves your laptop:
+1. **Local Gemma 2 & Regex Engine** extract sensitive credentials into an ephemeral in-memory RAM vault.
+2. Sensitive data is substituted with immutable typed tokens (e.g. `<ALIAS_VIN_1>`, `<ALIAS_IBAN_1>`, `<ALIAS_DB_URI_1>`).
+3. An **Egress Gate** mathematically verifies **0.00% private entropy leakage** before outbound TLS transmission.
+4. **Cloud Reasoners (NVIDIA Nemotron NIM / OpenAI)** compute over the anonymized semantic structure with zero exposure of real-world secrets.
+
+---
+
+## 📚 Documentation
+
+- [🏗️ Deep Technical Architecture](docs/ARCHITECTURE.md) — Threat model, mathematical leakage metric ($E_{leak} \equiv 0.00\%$), and sliding-window streaming.
+- [🪜 The 5-Level Privacy Reduction Ladder](docs/PRIVACY_LADDER.md) — Formal governance framework and EU AI Act / GDPR Article 25 mapping.
+- [🔌 Integration Guides](docs/INTEGRATIONS.md) — Step-by-step setup for Cursor IDE, Python SDK, LangChain, Claude Code, and cURL.
+- [💻 CLI & Terminal Reference](docs/CLI_REFERENCE.md) — Complete guide to all flags, commands, environment variables, and slash shortcuts.
+- [🤝 Contributing Guidelines](CONTRIBUTING.md) — How to add entity classifiers, test locally, and submit PRs.
+
+---
+
+## ⚡ Quick Start (30 Seconds)
+
+### Option A: Direct Interactive Terminal Chat (Recommended)
+Run directly with `npx` or install globally:
 
 ```bash
-npx alias-ai start
+# Direct run
+npx alias-ai
+
+# Or install globally
+npm install -g alias-ai
+alias-ai
 ```
 
-Or install globally:
-
+### Option B: Transparent Local Proxy for Cursor & Agents
+Alias AI automatically listens on `http://127.0.0.1:8080/v1` as an OpenAI-compatible gateway:
 ```bash
-npm install -g alias-ai
 alias-ai start
 ```
 
-### Point your tools to `http://127.0.0.1:8080/v1`
-
-- **Cursor IDE:** In Cursor Settings $\rightarrow$ Models $\rightarrow$ OpenAI Base URL: `http://127.0.0.1:8080/v1`
-- **Terminal / Shell:** `export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"`
+Point any AI coding tool to your sovereign airgap:
+- **Cursor IDE:** Settings $\rightarrow$ Models $\rightarrow$ Override OpenAI Base URL: `http://127.0.0.1:8080/v1`
+- **Windsurf / Claude Code / Terminal:** `export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"`
 - **Python OpenAI SDK:** `client = OpenAI(base_url="http://127.0.0.1:8080/v1")`
 - **LangChain:** `ChatOpenAI(openai_api_base="http://127.0.0.1:8080/v1")`
 
-All prompts are **automatically scanned locally on your laptop**, sensitive attributes (VINs, IBANs, API keys, database credentials) are extracted into an ephemeral in-memory vault and substituted with typed `<ALIAS_*>` placeholders, mathematically proving **0.00% private entropy leakage** before any network packet leaves your machine.
-
 ---
 
-## 🌐 Live Open-Source Documentation Site
+## 🖥️ Interactive Terminal Chat Experience
 
-Explore the architectural deep dive, interactive client-side airgap simulator, and developer integration guides:
+Alias AI features a clean, responsive terminal chat REPL inspired by Google Antigravity (`agy`) and Claude Code:
 
-👉 **[https://alias-ai-pi.vercel.app](https://alias-ai-pi.vercel.app)**
+```text
+     ▄▄        ALIAS AI v0.1.0 (Airgap Gateway)
+    ████       Enclave: Google Gemma 2 [CUDA]
+   ██  ██      Model:   NVIDIA Nemotron NIM
+  ████████     Airgap:  0.00% Leakage [Verified]
+ ▄██      ██▄  Proxy:   http://127.0.0.1:8080/v1
+────────────────────────────────────────────────────
+? for shortcuts       NVIDIA Nemotron · 0.00% airgap
 
----
+> Write a polite email in German to my landlord asking for the return of my rental deposit. My name is Chandu, my phone is 0176889922, and my IBAN is DE89370400440532013000.
 
-## 🏛️ How It Works (The Ponytail Model)
+  ● Airgap Enclave: 4 secret(s) vaulted (person_name, phone, account) · 0.00% cloud leakage
 
-Modeled after high-efficiency local developer tools like `ponytail`, **Alias AI** sits transparently on `http://127.0.0.1:8080` as an OpenAI-compatible reverse proxy:
+  Sehr geehrte/r Frau/Herr [Nachname],
 
+  mein Name ist <ALIAS_PERSON_1>. Ich habe die Wohnung zum [Datum] gekündigt 
+  und übergeben und bitte Sie hiermit höflich um die Überweisung der Kaution 
+  auf mein Konto mit der IBAN <ALIAS_IBAN_1>.
+
+  Mit freundlichen Grüßen,
+  <ALIAS_PERSON_1>
+  Telefon: <ALIAS_PHONE_1>
+
+────────────────────────────────────────────────────
+? for shortcuts       NVIDIA Nemotron · 0.00% airgap
+
+> 
 ```
-                                  LOCAL LAPTOP (SOVEREIGN ENCLAVE)                                 │         CLOUD LLM
-                                                                                                  │
-┌──────────────────────┐        ┌─────────────────────────┐        ┌─────────────────────────┐    │    ┌─────────────────┐
-│  Developer Tooling   │        │     Alias AI Gateway    │        │     Egress Firewall     │    │    │ NVIDIA Nemotron │
-│ (Cursor / VS Code /  │ ─────> │ (Ollama Gemma 2 / Regex)│ ─────> │ 0.00% Entropy Leakage   │ ──────> │  or OpenAI gpt-4o│
-│ Python / Terminal)   │ Raw    │ Locks secrets in-memory │ Typed  │ Mathematically Verified │TLS │    │ Receives only   │
-└──────────────────────┘ Prompt │ Vault; creates <ALIAS_*>│ Aliases└─────────────────────────┘    │    │ <ALIAS_*> tags  │
-                                └─────────────────────────┘                                       │    └────────┬────────┘
-                                                                                                  │             │
-                                                                                                  │             │ Stream
-                                ┌────────────────────────────────────────────────────────────┐    │             │ Chunks
-                                │ Streaming Mode:                                            │ <────────────────┘
-                                │ • Default: Zero-latency pass-through with placeholders     │    │
-                                │ • With --rehydrate: Local in-memory secret substitution   │    │
-                                └────────────────────────────────────────────────────────────┘    │
+
+---
+
+## 🚗 Everyday & Industrial Examples
+
+### 1. Private Car Bill of Sale (*Kaufvertrag*)
+```text
+Draft a bill of sale for selling my used car. My name is Chandu, phone is 0176889922, vehicle VIN is WDB2040011A123456, sale price is €7,800, and deposit to IBAN DE89370400440532013000.
+```
+* **Workstation RAM:** Isolates `Chandu`, `0176889922`, `WDB2040011A123456`, `DE89370400440532013000`.
+* **Cloud Wire:** Receives `<ALIAS_PERSON_1>`, `<ALIAS_PHONE_1>`, `<ALIAS_VIN_1>`, `<ALIAS_IBAN_1>`.
+* **Cloud Leakage:** Exactly **0.00%**.
+
+### 2. DevOps & Cloud Secret Incident
+```text
+Review this deployment script for security risks: export AWS_KEY=AKIAIOSFODNN7EXAMPLE and connect to postgresql://fleet_admin:SuperSecret99@prod-db.internal:5432/fleet.
+```
+* **Workstation RAM:** Isolates AWS access key and internal database credentials.
+* **Cloud Wire:** NVIDIA Nemotron reviews script architecture without ever seeing production credentials.
+
+---
+
+## 🪜 The 5-Level Privacy Reduction Ladder
+
+| Level | Enclave / Stage | Content Transferred | Leakage Risk | Description |
+|---|---|---|---|---|
+| **Level 0** | Local Disk / RAM | Raw code + sensitive credentials | 0% (Local) | Operator workstation only. Secrets never leave memory. |
+| **Level 1** | Local Sanitizer | Typed placeholders (`<ALIAS_*>`) | 0.00% | Gemma 2 / deterministic regex extracts secrets into local vault. |
+| **Level 2** | Egress Gate | Sanitized payload | 0.00% | Egress firewall validates 0.00% private entropy before outbound TLS. |
+| **Level 3** | Cloud LLM | Anonymized AST & placeholders | 0.00% | Frontier reasoning (NVIDIA Nemotron / OpenAI) computes solution. |
+| **Level 4** | Inbound Stream | Placeholders (or Local Re-hydrate) | 0.00% | Default: Pass-through streaming with placeholders. Optional: `-r` re-hydrates. |
+
+---
+
+## 🛠️ CLI & Shortcut Commands Reference
+
+| Command | Purpose |
+| :--- | :--- |
+| `alias-ai` / `alias-ai start` | Launch background proxy on `127.0.0.1:8080` & open interactive chat in terminal |
+| `alias-ai start -r` | Start with local token re-hydration enabled |
+| `alias-ai doctor` | Verify Node.js, port availability, Ollama CUDA daemon, Gemma 2, and crypto benchmark |
+| `alias-ai test` | Run automated airgap verification test (0.00% entropy leakage) |
+| `alias-ai sanitize "<text>"` | Real-time RAM vs Cloud Wire comparison for any prompt |
+| `alias-ai config` | One-click copy-paste setup configs for Cursor, Python, and shell |
+
+### In-Chat Slash Commands
+- **`/vault`**: Inspect all secrets currently vaulted in local workstation RAM.
+- **`/rehydrate`**: Toggle whether cloud responses restore original secrets locally.
+- **`/clear`**: Clear screen and reset conversation history.
+- **`/exit`** or **`exit`**: Safely purge in-memory session vault and exit.
+- **`?`**: Display quick shortcut cheat sheet.
+
+---
+
+## 🤝 Welcoming Open Source Contributions
+
+Alias AI is an independent, developer-first open source project under the **Apache 2.0 License**. We actively welcome community contributions!
+
+- 🐛 **Found a bug or edge-case entity?** [Open an issue](https://github.com/Chandukasireddy/Alias_AI/issues).
+- ✨ **Want to add an entity regex or classifier?** See our [Contributing Guide](CONTRIBUTING.md).
+- 📜 **Code of Conduct:** Read our [Contributor Covenant Pledge](CODE_OF_CONDUCT.md).
+
+### Quick Development Setup
+```bash
+git clone https://github.com/Chandukasireddy/Alias_AI.git
+cd Alias_AI
+npm link
+alias-ai test
 ```
 
-### 1. Inbound Request Interception
-When an agent or developer tool sends a request to `/v1/chat/completions`:
-- The request is intercepted before hitting any network wire.
-- The **Local Aliasing Engine** identifies sensitive entities across automotive, financial, credentials, and PII categories:
-  - **Automotive & Industrial:** Chassis VINs (ISO 3779, e.g. `WDB204...`), CAN-bus frames, telemetry tokens.
-  - **Financial:** German & European IBANs (`DE89...`, `FR76...`).
-  - **Infrastructure & Credentials:** OpenAI (`sk-...`), NVIDIA (`nvapi-...`), AWS (`AKIA...`), GitHub (`ghp_...`), Database Connection Strings (`postgresql://...`), Private Keys.
-  - **PII:** Emails, German phone numbers (`+49...`), internal domain names (`*.corp`, `*.internal`).
-- Entities are saved to an in-memory session vault and substituted with context-preserving typed placeholders: `<ALIAS_VIN_1>`, `<ALIAS_IBAN_1>`, `<ALIAS_APIKEY_1>`.
-
-### 2. Mathematical Egress Gate
-The outbound payload is checked against all active vault secrets:
-$$\text{Entropy Leakage} = \frac{\sum \text{unmasked secrets}}{\text{total confidential entities}} \times 100\% = 0.00\%$$
-Zero network exposure guaranteed.
-
-### 3. Native Streaming vs. Local Re-hydration
-- **Default Mode (Pass-Through Streaming):** Cloud response chunks stream directly back with `<ALIAS_*>` tokens intact. This ensures **zero streaming latency**, no chunk-buffering stutter, and total privacy for coding agents.
-- **Optional Re-hydration (`--rehydrate` / `-r`):** Buffers response chunks and locally swaps placeholders back to the original real secrets before delivering the result to the operator.
-
 ---
 
-## 🛠️ CLI Command Reference
+## ⚖️ Compliance & Governance Alignment
 
-| Command | Description |
-|---|---|
-| `alias-ai start` | Launch the local proxy server on port `8080` (default) |
-| `alias-ai start -p 8081` | Bind to a custom port |
-| `alias-ai start -u https://integrate.api.nvidia.com` | Forward to NVIDIA NIM cloud endpoint |
-| `alias-ai start -r` | Enable local re-hydration of placeholders |
-| `alias-ai start --no-wizard` | Skip first-run hardware & Ollama model detection |
-| `alias-ai doctor` | Run system diagnostics (Node version, ports, Ollama, Gemma 2, benchmark) |
-| `alias-ai test` | Execute end-to-end airgap verification test with mock Mercedes VINs & API keys |
-| `alias-ai config` | Print copy-paste integration snippets for Cursor, VS Code, Python, and LangChain |
-
----
-
-## 🧠 Local Hardware & Edge Model Wizard
-
-On first launch, Alias AI automatically queries the local machine:
-1. **Detects Ollama** on `http://127.0.0.1:11434`.
-2. **Checks for Google Gemma 2** (`gemma2:2b`).
-   - If present: Activates **Hybrid Mode** (Gemma 2 Neural Named Entity Recognition + Regex).
-   - If missing: Offers a one-click guide (`ollama run gemma2:2b`) while immediately activating the **Deterministic Engine** (0ms latency, 100% regex/rule coverage).
-3. Completely self-contained with **zero external npm dependencies** (pure Node.js standard library).
-
----
-
-## 📜 Regulatory & Compliance Alignment
-
-Alias AI directly operationalizes European data sovereignty and compliance frameworks:
-- **EU AI Act Article 14 (Human Oversight & Airgap Governance):** Ensures high-risk AI deployments maintain technical boundaries preventing autonomous transmission of unverified corporate telemetry.
-- **GDPR Article 25 (Privacy by Design & Default):** Enforces data minimization by replacing customer and vehicle identifiers with synthetic aliases prior to third-party cloud processing.
-
----
-
-## 🏆 NVIDIA GTC Berlin 2026 Golden Ticket Submission
-
-- **Target Judge:** Dr. Jörg Storm (Founder, Dr. Storm Advisory GmbH; former Global Head of IT Infrastructure, Mercedes-Benz Mobility).
-- **Core Alignment:** Operationalizes Dr. Storm's *"Sensitivity vs. Capability Matrix"*.
-- **Tech Stack:** Google Gemma 2, NVIDIA NeMo Guardrails, NVIDIA Nemotron-70B, Node.js CLI, Angular 21, Google Cloud GKE.
+- **EU AI Act Article 14:** Technical Airgap Governance & Human Oversight.
+- **GDPR Article 25:** Data Minimization & Privacy by Design and Default.
+- **Zero Supply-Chain Risk:** Built with 100% Node.js standard library—zero third-party npm runtime dependencies for core proxy.
 
 ---
 
 ## 📄 License
 
-Distributed under the Apache 2.0 License. See `LICENSE` for details.
+Distributed under the [Apache 2.0 License](LICENSE).
