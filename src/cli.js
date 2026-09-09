@@ -26,6 +26,7 @@ class CLI {
       port: 8080,
       upstream: 'https://api.openai.com',
       rehydrate: false,
+      gemma: false,
       noWizard: false
     };
 
@@ -37,6 +38,8 @@ class CLI {
         options.upstream = args[++i];
       } else if (arg === '-r' || arg === '--rehydrate') {
         options.rehydrate = true;
+      } else if (arg === '-g' || arg === '--gemma' || arg === '--hybrid') {
+        options.gemma = true;
       } else if (arg === '--no-wizard') {
         options.noWizard = true;
       }
@@ -79,7 +82,10 @@ class CLI {
   static async cmdStart(options) {
     // 1. Run Setup Wizard
     if (!options.noWizard) {
-      await SetupWizard.run(options);
+      const wizardRes = await SetupWizard.run(options);
+      if (wizardRes && wizardRes.extractionMode === 'hybrid') {
+        options.gemma = true;
+      }
     }
 
     // 2. Instantiate and launch Proxy
@@ -260,6 +266,7 @@ class CLI {
   -p, --port <number> Local port to bind (default: 8080)
   -u, --upstream <url> Target LLM upstream URL (default: https://api.openai.com)
   -r, --rehydrate     Enable local token re-hydration (default: false, pass-through streaming)
+  -g, --gemma         Enable Google Gemma 2 local neural NER on Ollama
   --no-wizard         Skip first-run hardware & local model check
 `);
   }

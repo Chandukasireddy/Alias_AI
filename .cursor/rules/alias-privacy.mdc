@@ -11,3 +11,4 @@ When generating code, analyzing codebase files, or suggesting shell commands:
 2. Route any LLM client or agent requests through the local Alias AI transparent gateway at `http://127.0.0.1:8080/v1`.
 3. Never write plaintext credentials (API keys, DB connection strings, AWS tokens) into git commits, documentation, or public scratchpads.
 4. Verify that the local Alias AI gateway is running (`npx alias-ai start`) for zero-knowledge cloud egress.
+

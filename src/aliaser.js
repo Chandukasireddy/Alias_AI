@@ -6,6 +6,8 @@
  * Mathematically verifies 0.00% private entropy leakage before cloud egress.
  */
 
+const http = require('http');
+
 class AliasingEngine {
   constructor() {
     // In-memory vault mapping: realValue -> aliasToken, and aliasToken -> realValue
@@ -202,6 +204,97 @@ class AliasingEngine {
   }
 
   /**
+   * Extract unstructured entities (person names, internal facilities, project codenames)
+   * using local Google Gemma 2 on Ollama (http://127.0.0.1:11434).
+   */
+  async extractWithGemma(text) {
+    if (!text || typeof text !== 'string' || text.length < 15) return [];
+
+    return new Promise((resolve) => {
+      const payload = JSON.stringify({
+        model: 'gemma2:2b',
+        prompt: `Extract confidential person names, internal facilities, or secret project codenames from this text: "${text.slice(0, 1000)}". Output only a valid JSON object formatted as {"entities": ["entity1", "entity2"]}. If none, return {"entities": []}.`,
+        stream: false,
+        format: 'json'
+      });
+
+      const req = http.request(
+        {
+          hostname: '127.0.0.1',
+          port: 11434,
+          path: '/api/generate',
+          method: 'POST',
+          timeout: 4000,
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        },
+        (res) => {
+          let data = '';
+          res.on('data', chunk => { data += chunk; });
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data);
+              const parsed = JSON.parse(json.response);
+              const list = parsed.entities || parsed.strings || [];
+              const valid = Array.isArray(list) ? list.filter(item => typeof item === 'string' && item.length > 2) : [];
+              resolve(valid);
+            } catch {
+              resolve([]);
+            }
+          });
+        }
+      );
+
+      req.on('error', () => resolve([]));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve([]);
+      });
+
+      req.write(payload);
+      req.end();
+    });
+  }
+
+  /**
+   * Hybrid sanitization: Deterministic high-speed regex + optional Gemma 2 local neural extraction.
+   */
+  async sanitizeMessagesAsync(messages, enableGemma = false) {
+    // 1. First pass: Deterministic regex extraction (0ms)
+    const result = this.sanitizeMessages(messages);
+
+    // 2. Second pass: If Gemma 2 enabled, detect unstructured names & facilities
+    if (enableGemma) {
+      for (const msg of result.messages) {
+        if (typeof msg.content === 'string') {
+          try {
+            const neuralEntities = await this.extractWithGemma(msg.content);
+            for (const entity of neuralEntities) {
+              if (msg.content.includes(entity) && !entity.startsWith('<ALIAS_')) {
+                const alias = this.getOrCreateAlias(entity, 'PERSON_OR_FACILITY', '<ALIAS_ENTITY_');
+                msg.content = msg.content.split(entity).join(alias);
+                result.entities.push({
+                  type: 'NEURAL_ENTITY',
+                  category: 'UNSTRUCTURED',
+                  original: entity,
+                  alias: alias,
+                  length: entity.length
+                });
+              }
+            }
+          } catch {
+            // fallback gracefully
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Mathematically proves that none of the vault's raw secrets exist in the outbound payload.
    */
   verifyZeroLeakage(outboundText) {
@@ -269,3 +362,4 @@ class AliasingEngine {
 }
 
 module.exports = AliasingEngine;
+

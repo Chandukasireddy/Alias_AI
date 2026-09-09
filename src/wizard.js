@@ -97,3 +97,4 @@ class SetupWizard {
 }
 
 module.exports = SetupWizard;
+

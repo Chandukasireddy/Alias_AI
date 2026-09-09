@@ -11,3 +11,4 @@ CLI.run(process.argv).catch(err => {
   console.error('\x1b[31m[FATAL ERROR]\x1b[0m', err);
   process.exit(1);
 });
+

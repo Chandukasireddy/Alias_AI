@@ -17,6 +17,7 @@ class ProxyServer {
     this.host = options.host || '127.0.0.1';
     this.upstream = options.upstream || process.env.OPENAI_BASE_URL || 'https://api.openai.com';
     this.rehydrate = Boolean(options.rehydrate || process.env.ALIAS_REHYDRATE === 'true');
+    this.enableGemma = Boolean(options.gemma || options.hybrid || process.env.ALIAS_GEMMA === 'true');
     this.aliaser = new AliasingEngine();
 
     this.stats = {
@@ -282,8 +283,9 @@ API Key: (Your real OpenAI/NVIDIA API Key, or any token)</pre>
         const isStream = Boolean(parsedBody.stream);
         const shouldRehydrate = this.rehydrate || req.headers['x-alias-rehydrate'] === 'true';
 
-        // 1. Airgap Sanitization via Local Aliasing Engine
-        const { messages: sanitizedMessages, entities, leakage } = this.aliaser.sanitizeMessages(messages);
+        // 1. Airgap Sanitization via Local Aliasing Engine (with optional Gemma 2 neural NER)
+        const enableGemma = this.enableGemma || req.headers['x-alias-gemma'] === 'true';
+        const { messages: sanitizedMessages, entities, leakage } = await this.aliaser.sanitizeMessagesAsync(messages, enableGemma);
 
         this.stats.requestsTotal++;
         this.stats.secretsSanitized += entities.length;
@@ -468,3 +470,4 @@ API Key: (Your real OpenAI/NVIDIA API Key, or any token)</pre>
 }
 
 module.exports = ProxyServer;
+

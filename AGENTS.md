@@ -70,3 +70,4 @@ Alias AI automatically enforces:
 - **GDPR Article 25:** Privacy by Design & Default (data minimization).
 - **EU AI Act Article 14:** Human Oversight & Technical Airgap Governance.
 - **Mathematical Attestation:** 0.00% cloud private entropy leakage.
+
