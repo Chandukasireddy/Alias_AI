@@ -1,0 +1,1705 @@
+<div class="docs-layout">
+  <!-- TOP HEADER -->
+  <header class="docs-header">
+    <div class="header-container">
+      <div class="header-left">
+        <button class="btn-mobile-sidebar" (click)="toggleSidebar()" aria-label="Toggle navigation menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <a routerLink="/" class="brand-link">
+          <img src="logo.svg" width="22" height="22" alt="Alias AI Logo" />
+          <span class="brand-title">Alias AI</span>
+        </a>
+        <span class="docs-badge">Documentation</span>
+        <span class="version-tag">v0.1.0</span>
+      </div>
+
+      <div class="header-right">
+        <a routerLink="/" class="header-nav-link">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Home / Simulator</span>
+        </a>
+
+        <a class="header-nav-link" (click)="selectSection('quickstart')">Quickstart</a>
+        <a class="header-nav-link" (click)="selectSection('langchain')">LangChain</a>
+        <a class="header-nav-link" (click)="selectSection('cli-repl')">CLI Reference</a>
+
+        <a class="btn-github-pill" href="https://github.com/Chandukasireddy/Alias_AI" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>Star on GitHub</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- BODY WRAPPER -->
+  <div class="docs-body">
+    <!-- BACKDROP FOR MOBILE SIDEBAR -->
+    @if (sidebarOpen()) {
+      <div class="sidebar-backdrop" (click)="toggleSidebar()"></div>
+    }
+
+    <!-- LEFT NAVIGATION SIDEBAR -->
+    <aside class="docs-sidebar" [class.open]="sidebarOpen()">
+      <div class="sidebar-search-box">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery" 
+            placeholder="Search documentation..." 
+            class="sidebar-search-input"
+          />
+          @if (searchQuery()) {
+            <button class="search-clear-btn" (click)="searchQuery.set('')">✕</button>
+          }
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        @if (filteredCategories().length === 0) {
+          <div class="no-results-msg">
+            <span>No documentation matches "{{ searchQuery() }}"</span>
+          </div>
+        }
+
+        @for (category of filteredCategories(); track category.name) {
+          <div class="nav-category-group">
+            <div class="category-header">
+              <span class="category-icon">{{ category.icon }}</span>
+              <span class="category-title">{{ category.name }}</span>
+            </div>
+            <ul class="category-items">
+              @for (sec of category.sections; track sec.id) {
+                <li>
+                  <button 
+                    class="nav-item-btn" 
+                    [class.active]="activeSection() === sec.id"
+                    (click)="selectSection(sec.id)">
+                    <span class="item-title">{{ sec.title }}</span>
+                    @if (sec.badge) {
+                      <span class="item-badge" [class.badge-green]="sec.badge === '0.00%'" [class.badge-purple]="sec.badge === 'Popular'">
+                        {{ sec.badge }}
+                      </span>
+                    }
+                  </button>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="enclave-status-pill">
+          <span class="pulse-dot"></span>
+          <span>Airgap Gateway Ready (Port 8080)</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER DOCUMENTATION CONTENT -->
+    <main class="docs-main">
+      <div class="docs-content-container">
+        <!-- BREADCRUMBS -->
+        <div class="breadcrumbs-bar">
+          @for (crumb of breadcrumbs(); track crumb; let last = $last) {
+            <span class="crumb-text" [class.active]="last">{{ crumb }}</span>
+            @if (!last) {
+              <span class="crumb-sep">/</span>
+            }
+          }
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SECTION: OVERVIEW -->
+        <!-- ========================================== -->
+        <section id="overview" class="doc-section">
+          <div class="section-title-row">
+            <h1 class="main-title">What is Alias AI?</h1>
+            <span class="badge-airgap">0.00% Leakage Guarantee</span>
+          </div>
+
+          <p class="lead-text">
+            <strong>Alias AI</strong> is an open-source, sovereign, zero-knowledge privacy airgap gateway designed for AI coding agents, enterprise developers, and automated data pipelines. It sits locally on your workstation, intercepting outbound LLM traffic over the standard OpenAI protocol (<code>http://127.0.0.1:8080/v1</code>).
+          </p>
+
+          <div class="alert-box tip">
+            <div class="alert-icon">💡</div>
+            <div class="alert-body">
+              <strong>Zero Refactoring Required:</strong> Alias AI speaks standard OpenAI wire protocol. Whether you use Cursor IDE, LangChain, Claude Code, Python, or shell scripts, you only need to change your base URL to <code>http://127.0.0.1:8080/v1</code>.
+            </div>
+          </div>
+
+          <h2>The Core Problem</h2>
+          <p>
+            Modern AI workflows require sending source code, stack traces, and customer inputs to third-party cloud LLMs. In doing so, developers inadvertently leak:
+          </p>
+          <ul class="bullet-list">
+            <li><strong>Automotive VINs:</strong> ISO 3779 vehicle identification numbers exposing customer vehicles and fleet telemetry.</li>
+            <li><strong>European Banking Data:</strong> German SEPA IBANs and account routing info subject to GDPR Art. 25 strict liabilities.</li>
+            <li><strong>Production Credentials:</strong> AWS access keys, GitHub personal tokens, NVIDIA/OpenAI API keys, and PostgreSQL connection strings.</li>
+            <li><strong>Internal Network Topology:</strong> Private IPv4 subnets (<code>10.0.0.0/8</code>) and corporate hostnames (<code>*.internal</code>).</li>
+          </ul>
+
+          <p>
+            When these secrets touch cloud servers, they are logged in plain text, stored across multi-tenant GPU clusters, and vulnerable to sub-processor data leaks.
+          </p>
+
+          <h2>The Alias AI Solution</h2>
+          <p>
+            Alias AI intercepts every outgoing prompt before it ever initiates a TLS handshake with cloud servers. It extracts confidential data into an ephemeral local RAM vault, substitutes each value with a semantically typed alias (e.g. <code>&lt;ALIAS_VIN_1&gt;</code>, <code>&lt;ALIAS_IBAN_1&gt;</code>), and mathematically validates that zero private entropy exists on the outbound wire.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Bash — 5-Second Verification</span>
+              <button class="btn-copy-code" (click)="copySnippet('overview-cmd')">
+                {{ isCopied('overview-cmd') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>$ npx alias-ai start
+# [AIRGAP GATEWAY] Initializing in-memory enclave...
+# [FIREWALL] 0.00% private entropy verified.
+# [LISTENER] Gateway listening on http://127.0.0.1:8080/v1</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: WHY AIRGAP -->
+        <!-- ========================================== -->
+        <section id="why-airgap" class="doc-section">
+          <h1>Why Airgap Gateway vs Cloud DLP?</h1>
+          <p class="lead-text">
+            Traditional enterprise security solutions (VPNs, Cloud Access Security Brokers, and API Proxies) inspect traffic in transit or in the cloud. By that point, the data has already left your workstation.
+          </p>
+
+          <div class="table-responsive">
+            <table class="doc-table">
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Cloud DLP / CASB</th>
+                  <th>Corporate VPN</th>
+                  <th>Alias AI Airgap Gateway</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Where Secret Extraction Occurs</strong></td>
+                  <td>Cloud Vendor Server</td>
+                  <td>No Extraction (Encrypted tunnel)</td>
+                  <td><strong>Local Workstation RAM (Enclave)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Latency Impact</strong></td>
+                  <td>+150ms – 400ms (Round-trip)</td>
+                  <td>+20ms – 50ms</td>
+                  <td><strong>&lt; 0.5ms (Deterministic Regex)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Cloud Leakage Invariant</strong></td>
+                  <td>Partial / Probabilistic</td>
+                  <td>100% Exposed to Cloud LLM</td>
+                  <td><strong>0.00% Mathematical Proof</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Model Reasoning Quality</strong></td>
+                  <td>Breaks grammar (replaces with [REDACTED])</td>
+                  <td>Full</td>
+                  <td><strong>Preserved via Typed Tokens (&lt;ALIAS_*&gt;)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Token Streaming</strong></td>
+                  <td>Blocked or buffered</td>
+                  <td>Direct stream</td>
+                  <td><strong>Pass-through with sliding-window re-hydration</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: QUICKSTART -->
+        <!-- ========================================== -->
+        <section id="quickstart" class="doc-section">
+          <div class="section-title-row">
+            <h1>30-Second Quickstart</h1>
+            <span class="badge-tag">Zero Dependencies</span>
+          </div>
+
+          <p class="lead-text">
+            Get up and running in three simple commands with zero package installations required.
+          </p>
+
+          <h3>Step 1: Start the Local Airgap Gateway</h3>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Terminal</span>
+              <button class="btn-copy-code" (click)="copySnippet('qs-1')">
+                {{ isCopied('qs-1') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code># Start the transparent proxy on localhost:8080
+$ npx alias-ai start</code></pre>
+          </div>
+
+          <h3>Step 2: Export Standard Environment Variables</h3>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Bash</span>
+              <button class="btn-copy-code" (click)="copySnippet('qs-2')">
+                {{ isCopied('qs-2') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
+export OPENAI_API_KEY="alias-local-token"</code></pre>
+          </div>
+
+          <h3>Step 3: Make Your First Airgapped Request</h3>
+          <p>Test with cURL, Python, or your favorite AI coding tool:</p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">cURL</span>
+              <button class="btn-copy-code" (click)="copySnippet('qs-3')">
+                {{ isCopied('qs-3') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>curl http://127.0.0.1:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer alias-local-token" \
+  -d '&#123;
+    "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    "messages": [&#123;"role": "user", "content": "Analyze VIN WDB2110761A123456 with German IBAN DE89370400440532013000"&#125;]
+  &#125;'</code></pre>
+          </div>
+
+          <div class="alert-box note">
+            <div class="alert-icon">ℹ️</div>
+            <div class="alert-body">
+              <strong>What just happened?</strong> On your local machine, the VIN and IBAN were extracted into memory. The cloud provider received only <code>&lt;ALIAS_VEHICLE_VIN_1&gt;</code> and <code>&lt;ALIAS_GERMAN_IBAN_1&gt;</code>. Exactly 0.00% secrets were transmitted over the internet.
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: THREAT MODEL -->
+        <!-- ========================================== -->
+        <section id="threat-model" class="doc-section">
+          <h1>Architecture & Threat Model</h1>
+          <p class="lead-text">
+            Alias AI follows a strict Zero-Knowledge Sovereign Enclave threat model.
+          </p>
+
+          <div class="architecture-flow-box">
+            <div class="arch-col local">
+              <span class="arch-badge">Local Sovereign Host (Your Machine)</span>
+              <div class="arch-box">
+                <strong>Developer / Agent</strong>
+                <span>Cursor, Python, LangChain, Claude Code</span>
+              </div>
+              <div class="arch-arrow">↓ Raw text with secrets</div>
+              <div class="arch-box highlight">
+                <strong>Alias AI Local Proxy (Port 8080)</strong>
+                <span>Local Gemma 2 NER + Deterministic Regex</span>
+                <span class="arch-sub">Ephemeral RAM Vault (0 bytes to disk)</span>
+              </div>
+              <div class="arch-arrow">↓ Outbound Egress Gate (Math Verification)</div>
+            </div>
+
+            <div class="arch-divider">
+              <span class="divider-label">TLS 1.3 Boundary (Zero Private Entropy)</span>
+            </div>
+
+            <div class="arch-col cloud">
+              <span class="arch-badge cloud">Untrusted Cloud Network</span>
+              <div class="arch-box cloud-box">
+                <strong>Cloud LLM Reasoner</strong>
+                <span>NVIDIA Nemotron-70B / OpenAI / Anthropic</span>
+                <span class="arch-sub">Receives ONLY &lt;ALIAS_*&gt; tokens</span>
+              </div>
+            </div>
+          </div>
+
+          <h2>Security Invariants</h2>
+          <ol class="numbered-list">
+            <li><strong>Zero Disk Persistence:</strong> Secrets stored in the Ephemeral Vault are retained strictly in <code>process.memory</code>. When the session terminates or proxy restarts, the vault is completely destroyed.</li>
+            <li><strong>Deterministic Replacement:</strong> Secrets are replaced before any HTTP socket connection to the upstream LLM is initiated.</li>
+            <li><strong>Pass-Through Streaming by Default:</strong> Streamed tokens are passed directly to the caller with aliases intact to prevent token buffering latency. Client-side re-hydration is available via the <code>-r</code> flag.</li>
+          </ol>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: PRIVACY LADDER -->
+        <!-- ========================================== -->
+        <section id="privacy-ladder" class="doc-section">
+          <h1>The 5-Level Privacy Reduction Ladder</h1>
+          <p class="lead-text">
+            The formal framework establishing technical data reduction at each phase of the AI inference lifecycle.
+          </p>
+
+          <div class="table-responsive">
+            <table class="doc-table">
+              <thead>
+                <tr>
+                  <th>Level</th>
+                  <th>Stage</th>
+                  <th>Payload Transferred</th>
+                  <th>Leakage Risk</th>
+                  <th>Governance Directive</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="ladder-pill l0">Level 0</span></td>
+                  <td>Local Workstation</td>
+                  <td>Raw source code, credentials, customer PII</td>
+                  <td>0% (Local)</td>
+                  <td>Secrets restricted to developer RAM.</td>
+                </tr>
+                <tr>
+                  <td><span class="ladder-pill l1">Level 1</span></td>
+                  <td>Local Sanitizer</td>
+                  <td>Typed placeholders (<code>&lt;ALIAS_*&gt;</code>)</td>
+                  <td>0.00%</td>
+                  <td>Local Gemma 2 + regex extract secrets to in-memory vault.</td>
+                </tr>
+                <tr>
+                  <td><span class="ladder-pill l2">Level 2</span></td>
+                  <td>Egress Gate</td>
+                  <td>Sanitized payload with 0.00% entropy</td>
+                  <td>0.00%</td>
+                  <td>Firewall validates 0.00% leakage prior to TLS socket creation.</td>
+                </tr>
+                <tr>
+                  <td><span class="ladder-pill l3">Level 3</span></td>
+                  <td>Cloud LLM</td>
+                  <td>Anonymized semantic AST</td>
+                  <td>0.00%</td>
+                  <td>Frontier models reason over logic without knowing real values.</td>
+                </tr>
+                <tr>
+                  <td><span class="ladder-pill l4">Level 4</span></td>
+                  <td>Inbound Stream</td>
+                  <td>Tokens streamed directly or re-hydrated</td>
+                  <td>0.00%</td>
+                  <td>Default: Pass-through streaming. Optional: local re-hydration.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: ZERO LEAKAGE GUARANTEE -->
+        <!-- ========================================== -->
+        <section id="zero-leakage" class="doc-section">
+          <h1>Zero-Leakage Guarantee (E_leak = 0.00%)</h1>
+          <p class="lead-text">
+            Alias AI mathematically asserts that not a single byte of confidential information reaches the cloud.
+          </p>
+
+          <div class="math-box">
+            <span class="math-title">Empirical Entropy Leakage Formula</span>
+            <div class="math-formula">
+              <code>E_leak = ( Σ I(v_i ∈ P_egress) / N ) × 100% ≡ 0.00%</code>
+            </div>
+            <p class="math-caption">
+              Where V = &#123;v_1, v_2, ..., v_N&#125; is the set of all extracted raw secret values stored in the Ephemeral Vault, and P_egress is the string payload prepared for network transmission.
+            </p>
+          </div>
+
+          <h3>Egress Firewall Invariant Enforcement</h3>
+          <p>
+            If any raw secret v_i is detected in the outbound payload (E_leak &gt; 0), the proxy instantly:
+          </p>
+          <ul class="bullet-list">
+            <li>Terminates the TCP connection before sending any HTTP headers.</li>
+            <li>Emits an <code>EntropyLeakageViolation</code> alert to the audit logger.</li>
+            <li>Purges the active session vault to prevent residual memory leakage.</li>
+          </ul>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: RAM VAULT -->
+        <!-- ========================================== -->
+        <section id="ram-vault" class="doc-section">
+          <h1>Ephemeral In-Memory RAM Vault</h1>
+          <p class="lead-text">
+            Bidirectional, high-performance mappings stored exclusively in volatile memory.
+          </p>
+
+          <p>
+            The engine maintains two hash maps for O(1) bi-directional lookups:
+          </p>
+          <ul class="bullet-list">
+            <li><code>vault: Map&lt;rawSecret, aliasPlaceholder&gt;</code> — Maps secret to token for fast outbound substitution.</li>
+            <li><code>reverseVault: Map&lt;aliasPlaceholder, rawSecret&gt;</code> — Maps token back to raw value for local re-hydration.</li>
+            <li><code>counterByType: Map&lt;entityType, number&gt;</code> — Maintains deterministic indexing per entity category (e.g. <code>&lt;ALIAS_VIN_1&gt;</code>, <code>&lt;ALIAS_VIN_2&gt;</code>).</li>
+          </ul>
+
+          <div class="alert-box warning">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-body">
+              <strong>Persistence Safety:</strong> The vault is never written to disk, cache files, temporary logs, or browser localStorage. Closing the process wipes all secrets permanently.
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: STREAMING ALGORITHM -->
+        <!-- ========================================== -->
+        <section id="streaming-algorithm" class="doc-section">
+          <h1>Sliding-Window Streaming Re-hydrator</h1>
+          <p class="lead-text">
+            How Alias AI solves the Server-Sent Events (SSE) token boundary splitting problem.
+          </p>
+
+          <h3>The Token-Split Challenge</h3>
+          <p>
+            When cloud models like NVIDIA Nemotron or GPT-4 stream output in tiny chunks (1-3 characters), an alias like <code>&lt;ALIAS_VIN_1&gt;</code> often arrives fragmented across multiple packets:
+          </p>
+          <div class="split-visual">
+            <div class="chunk-card">
+              <span class="chunk-label">Chunk 1</span>
+              <code>"The VIN is &lt;ALIAS_"</code>
+            </div>
+            <div class="chunk-card">
+              <span class="chunk-label">Chunk 2</span>
+              <code>"VEHICLE_"</code>
+            </div>
+            <div class="chunk-card">
+              <span class="chunk-label">Chunk 3</span>
+              <code>"VIN_1&gt; confirmed."</code>
+            </div>
+          </div>
+
+          <p>
+            A naive token-by-token replacement fails because neither Chunk 1 nor Chunk 2 contains the complete closing delimiter (<code>&gt;</code>).
+          </p>
+
+          <h3>The State Machine Algorithm</h3>
+          <p>
+            Alias AI implements a stateful sliding-window streaming buffer:
+          </p>
+          <ol class="numbered-list">
+            <li><strong>Buffer Carry-Over:</strong> Retain partial trailing alias prefixes matching <code>/&lt;ALIAS_[A-Z0-9_]*$/</code> in an internal sliding window.</li>
+            <li><strong>Immediate Safe Flush:</strong> Confirmed safe text preceding the partial tag is flushed to the caller immediately, preserving full model streaming velocity.</li>
+            <li><strong>Atomic Tag Resolution:</strong> When the closing delimiter (<code>&gt;</code>) is received, the complete token is looked up in the <code>reverseVault</code> and replaced atomically.</li>
+          </ol>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: ENTITY CLASSIFIERS -->
+        <!-- ========================================== -->
+        <section id="entity-classifiers" class="doc-section">
+          <h1>Supported Entity Classifiers</h1>
+          <p class="lead-text">
+            Comprehensive matrix of all built-in deterministic regex patterns and neural extraction entities.
+          </p>
+
+          <div class="table-responsive">
+            <table class="doc-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Entity Type</th>
+                  <th>Placeholder Format</th>
+                  <th>Extraction Example</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="badge-cat auto">Automotive</span></td>
+                  <td><strong>ISO 3779 VIN</strong></td>
+                  <td><code>&lt;ALIAS_VIN_1&gt;</code></td>
+                  <td><code>WDB2110761A123456</code> (17-char)</td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat fin">Financial</span></td>
+                  <td><strong>German SEPA IBAN</strong></td>
+                  <td><code>&lt;ALIAS_IBAN_1&gt;</code></td>
+                  <td><code>DE89 3704 0044 0532 0130 00</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat fin">Financial</span></td>
+                  <td><strong>Generic EU IBAN</strong></td>
+                  <td><code>&lt;ALIAS_IBAN_2&gt;</code></td>
+                  <td><code>FR14 2004 1010 0505 0001 3M02 606</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat cred">Credentials</span></td>
+                  <td><strong>OpenAI API Key</strong></td>
+                  <td><code>&lt;ALIAS_OPENAI_KEY_1&gt;</code></td>
+                  <td><code>sk-proj-abc1234567890abcdef...</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat cred">Credentials</span></td>
+                  <td><strong>NVIDIA NIM Key</strong></td>
+                  <td><code>&lt;ALIAS_NVIDIA_KEY_1&gt;</code></td>
+                  <td><code>nvapi-abc1234567890...</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat cred">Credentials</span></td>
+                  <td><strong>Anthropic Key</strong></td>
+                  <td><code>&lt;ALIAS_ANTHROPIC_KEY_1&gt;</code></td>
+                  <td><code>sk-ant-api03-abcdef...</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat cred">Credentials</span></td>
+                  <td><strong>AWS Access Key</strong></td>
+                  <td><code>&lt;ALIAS_AWS_KEY_1&gt;</code></td>
+                  <td><code>AKIAIOSFODNN7EXAMPLE</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat cred">Credentials</span></td>
+                  <td><strong>GitHub Token (PAT)</strong></td>
+                  <td><code>&lt;ALIAS_GITHUB_PAT_1&gt;</code></td>
+                  <td><code>ghp_1234567890abcdef...</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat cred">Credentials</span></td>
+                  <td><strong>Database URI</strong></td>
+                  <td><code>&lt;ALIAS_DB_URI_1&gt;</code></td>
+                  <td><code>postgres://admin:pass@db.internal:5432/fleet</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat infra">Infrastructure</span></td>
+                  <td><strong>Internal IPv4</strong></td>
+                  <td><code>&lt;ALIAS_IP_1&gt;</code></td>
+                  <td><code>10.0.4.15</code>, <code>192.168.1.100</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat infra">Infrastructure</span></td>
+                  <td><strong>Internal Hostname</strong></td>
+                  <td><code>&lt;ALIAS_HOST_1&gt;</code></td>
+                  <td><code>prod-db.fleet.internal</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat pii">PII</span></td>
+                  <td><strong>Email Address</strong></td>
+                  <td><code>&lt;ALIAS_EMAIL_1&gt;</code></td>
+                  <td><code>chandu@example.de</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat pii">PII</span></td>
+                  <td><strong>German Phone Number</strong></td>
+                  <td><code>&lt;ALIAS_PHONE_1&gt;</code></td>
+                  <td><code>+49 176 88992211</code>, <code>0176 88992211</code></td>
+                </tr>
+                <tr>
+                  <td><span class="badge-cat pii">PII</span></td>
+                  <td><strong>Street Address</strong></td>
+                  <td><code>&lt;ALIAS_ADDRESS_1&gt;</code></td>
+                  <td><code>Hauptstraße 42, 10115 Berlin</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: CLI REPL -->
+        <!-- ========================================== -->
+        <section id="cli-repl" class="doc-section">
+          <h1>Interactive Terminal REPL (<code>alias-ai</code>)</h1>
+          <p class="lead-text">
+            A beautiful, responsive terminal chat interface inspired by Google Antigravity (<code>agy</code>) and Claude Code.
+          </p>
+
+          <p>
+            Running <code>alias-ai</code> without arguments starts an interactive chat session directly in your terminal:
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Terminal</span>
+              <button class="btn-copy-code" (click)="copySnippet('repl-1')">
+                {{ isCopied('repl-1') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>$ alias-ai
+
+     ▄▄        ALIAS AI v0.1.0 (Airgap Gateway)
+    ████       Enclave: Google Gemma 2 [CUDA]
+   ██  ██      Model:   NVIDIA Nemotron NIM
+  ████████     Airgap:  0.00% Leakage [Verified]
+ ▄██      ██▄  Proxy:   http://127.0.0.1:8080/v1
+────────────────────────────────────────────────────
+? for shortcuts       NVIDIA Nemotron · 0.00% airgap
+
+> Draft bill of sale for Mercedes VIN WDB2110761A123456 and IBAN DE89370400440532013000.
+
+  ● Airgap Enclave: 2 secret(s) vaulted (vin, iban) · 0.00% cloud leakage
+
+  ADAC Kaufvertrag für Kraftfahrzeug:
+  Fahrgestellnummer: &lt;ALIAS_VIN_1&gt;
+  Zahlung auf Bankkonto: &lt;ALIAS_IBAN_1&gt;</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: CLI START -->
+        <!-- ========================================== -->
+        <section id="cli-start" class="doc-section">
+          <h1>Proxy Server (<code>alias-ai start</code>)</h1>
+          <p class="lead-text">
+            Launch the local background transparent proxy server for Cursor, Windsurf, LangChain, or autonomous coding agents.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Bash — Common Start Commands</span>
+              <button class="btn-copy-code" (click)="copySnippet('start-cmds')">
+                {{ isCopied('start-cmds') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code># Start proxy on default port 8080
+alias-ai start
+
+# Start on custom port
+alias-ai start --port 8081
+
+# Start with local secret re-hydration enabled
+alias-ai start --rehydrate
+
+# Run strictly with sub-millisecond regex (no Ollama required)
+alias-ai start --no-gemma</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: CLI FLAGS -->
+        <!-- ========================================== -->
+        <section id="cli-flags" class="doc-section">
+          <h1>Command Flags & Global Options</h1>
+          <p class="lead-text">
+            All flags can be passed to either <code>alias-ai start</code> or <code>alias-ai</code> interactive mode.
+          </p>
+
+          <div class="table-responsive">
+            <table class="doc-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>--port, -p &lt;number&gt;</code></td>
+                  <td>Number</td>
+                  <td><code>8080</code></td>
+                  <td>Local port to bind HTTP proxy server. Auto-increments to 8081 if occupied.</td>
+                </tr>
+                <tr>
+                  <td><code>--upstream, -u &lt;url&gt;</code></td>
+                  <td>String</td>
+                  <td><code>https://api.openai.com</code></td>
+                  <td>Upstream OpenAI-compatible LLM endpoint (e.g. <code>https://integrate.api.nvidia.com/v1</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>--rehydrate, -r</code></td>
+                  <td>Boolean</td>
+                  <td><code>false</code></td>
+                  <td>Enable client-side replacement of placeholders back into original secrets.</td>
+                </tr>
+                <tr>
+                  <td><code>--gemma, -g</code></td>
+                  <td>Boolean</td>
+                  <td><code>auto</code></td>
+                  <td>Forces neural Named Entity Recognition using local Google Gemma 2 (2B).</td>
+                </tr>
+                <tr>
+                  <td><code>--no-gemma</code></td>
+                  <td>Boolean</td>
+                  <td><code>false</code></td>
+                  <td>Bypasses Ollama; relies strictly on sub-millisecond deterministic regex.</td>
+                </tr>
+                <tr>
+                  <td><code>--model &lt;name&gt;</code></td>
+                  <td>String</td>
+                  <td><code>nvidia/nemotron-3-nano...</code></td>
+                  <td>Default target model passed to upstream provider.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: CLI DOCTOR TEST -->
+        <!-- ========================================== -->
+        <section id="cli-doctor-test" class="doc-section">
+          <h1>Diagnostics & Airgap Self-Tests</h1>
+          <p class="lead-text">
+            Validate system readiness and verify mathematical airgap integrity.
+          </p>
+
+          <h3><code>alias-ai doctor</code></h3>
+          <p>Inspects your local environment for airgap readiness:</p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Terminal</span>
+              <button class="btn-copy-code" (click)="copySnippet('doc-1')">
+                {{ isCopied('doc-1') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>$ alias-ai doctor
+[✓] Node.js runtime: v20.11.0 (>= 18.0.0 required)
+[✓] Local port 8080: Available
+[✓] Ollama CUDA daemon: Connected (http://127.0.0.1:11434)
+[✓] Gemma 2 model: gemma2:2b ready
+[✓] Regex classifier latency: 0.18ms (Target: &lt; 1.00ms)
+[✓] Airgap status: 100% Sovereign Enclave Verified</code></pre>
+          </div>
+
+          <h3><code>alias-ai test</code></h3>
+          <p>Executes an automated test suite across 5 realistic corporate scenarios and asserts 0.00% leakage:</p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Terminal</span>
+              <button class="btn-copy-code" (click)="copySnippet('doc-2')">
+                {{ isCopied('doc-2') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>$ alias-ai test
+Test 1: German SEPA IBAN extraction ......... PASSED (0.00% leakage)
+Test 2: ISO 3779 VIN number isolation ....... PASSED (0.00% leakage)
+Test 3: Cloud & OpenAI API key extraction ... PASSED (0.00% leakage)
+Test 4: PostgreSQL connection URI scrubber .. PASSED (0.00% leakage)
+Test 5: Sliding-window streaming rehydration . PASSED (0.00% leakage)
+
+Result: 5/5 PASSED · Mathematical Airgap Guarantee Upheld</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: CLI SANITIZE -->
+        <!-- ========================================== -->
+        <section id="cli-sanitize" class="doc-section">
+          <h1>Offline Prompt Sanitizer (<code>alias-ai sanitize</code>)</h1>
+          <p class="lead-text">
+            Inspect what will be stored in RAM versus what will leave your laptop without sending network traffic.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Terminal</span>
+              <button class="btn-copy-code" (click)="copySnippet('san-1')">
+                {{ isCopied('san-1') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>$ alias-ai sanitize "Deploy VIN WDB2110761A123456 using postgres://admin:pass@10.0.4.15:5432/db"
+
+--- [LOCAL WORKSTATION RAM VAULT] ---
+  &lt;ALIAS_VIN_1&gt;   -&gt; WDB2110761A123456
+  &lt;ALIAS_DB_URI_1&gt; -&gt; postgres://admin:pass@10.0.4.15:5432/db
+
+--- [OUTBOUND WIRE PAYLOAD] ---
+  "Deploy VIN &lt;ALIAS_VIN_1&gt; using &lt;ALIAS_DB_URI_1&gt;"
+
+--- [MATHEMATICAL ATTESTATION] ---
+  Private Entropy Leakage: 0.00%
+  GDPR Art. 25 Status: COMPLIANT</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: CLI CONFIG -->
+        <!-- ========================================== -->
+        <section id="cli-config" class="doc-section">
+          <h1>Instant Config Exporter (<code>alias-ai config</code>)</h1>
+          <p class="lead-text">
+            Print ready-to-use configuration blocks for Cursor, Python, and terminal environments.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Terminal</span>
+              <button class="btn-copy-code" (click)="copySnippet('cfg-1')">
+                {{ isCopied('cfg-1') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>$ alias-ai config
+
+[CURSOR SETTINGS JSON]
+&#123;
+  "openai.baseUrl": "http://127.0.0.1:8080/v1",
+  "openai.apiKey": "alias-local-token"
+&#125;
+
+[SHELL EXPORT]
+export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
+export OPENAI_API_KEY="alias-local-token"</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: SLASH COMMANDS -->
+        <!-- ========================================== -->
+        <section id="slash-commands" class="doc-section">
+          <h1>In-Chat Slash Commands</h1>
+          <p class="lead-text">
+            Shortcuts available during interactive REPL sessions (<code>alias-ai</code>).
+          </p>
+
+          <div class="table-responsive">
+            <table class="doc-table">
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Shortcut</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>/vault</code></td>
+                  <td><code>/v</code></td>
+                  <td>Inspect all secrets currently stored in local workstation RAM for this session.</td>
+                </tr>
+                <tr>
+                  <td><code>/rehydrate</code></td>
+                  <td><code>/r</code></td>
+                  <td>Toggle local secret restoration ON/OFF on the fly.</td>
+                </tr>
+                <tr>
+                  <td><code>/clear</code></td>
+                  <td><code>/c</code></td>
+                  <td>Flush the ephemeral RAM vault and clear terminal screen.</td>
+                </tr>
+                <tr>
+                  <td><code>/help</code></td>
+                  <td><code>?</code></td>
+                  <td>Display inline shortcut keys and command help.</td>
+                </tr>
+                <tr>
+                  <td><code>/exit</code></td>
+                  <td><code>/q</code></td>
+                  <td>Safely purge session memory and exit the REPL.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: ENVIRONMENT VARIABLES -->
+        <!-- ========================================== -->
+        <section id="env-vars" class="doc-section">
+          <h1>Environment Variables Reference</h1>
+          <p class="lead-text">
+            Alias AI automatically loads environment variables with the following resolution priority:
+          </p>
+          <ol class="numbered-list">
+            <li>Process environment variables (<code>process.env</code>)</li>
+            <li>Current working directory <code>.env</code></li>
+            <li>Repository root <code>.env</code></li>
+            <li>User profile enclave <code>~/.alias-ai/.env</code></li>
+          </ol>
+
+          <div class="table-responsive">
+            <table class="doc-table">
+              <thead>
+                <tr>
+                  <th>Variable</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>OPENAI_API_KEY</code></td>
+                  <td>—</td>
+                  <td>Cloud LLM API key (NVIDIA <code>nvapi-...</code> or OpenAI <code>sk-...</code>). Real key is kept locally.</td>
+                </tr>
+                <tr>
+                  <td><code>UPSTREAM_URL</code></td>
+                  <td><code>https://api.openai.com</code></td>
+                  <td>Target upstream LLM endpoint (e.g. <code>https://integrate.api.nvidia.com/v1</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>ALIAS_PORT</code></td>
+                  <td><code>8080</code></td>
+                  <td>Default local port to listen for incoming client requests.</td>
+                </tr>
+                <tr>
+                  <td><code>ALIAS_MODEL</code></td>
+                  <td><code>nvidia/nemotron-3-nano...</code></td>
+                  <td>Default target model identifier.</td>
+                </tr>
+                <tr>
+                  <td><code>OLLAMA_HOST</code></td>
+                  <td><code>http://127.0.0.1:11434</code></td>
+                  <td>Endpoint for local Gemma 2 Ollama daemon.</td>
+                </tr>
+                <tr>
+                  <td><code>OLLAMA_MODEL</code></td>
+                  <td><code>gemma2:2b</code></td>
+                  <td>Model tag for neural Named Entity Recognition.</td>
+                </tr>
+                <tr>
+                  <td><code>REHYDRATE</code></td>
+                  <td><code>false</code></td>
+                  <td>When set to <code>true</code>, re-hydrates tokens in inbound streaming output.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: LANGCHAIN INTEGRATION -->
+        <!-- ========================================== -->
+        <section id="langchain" class="doc-section">
+          <div class="section-title-row">
+            <h1>🦜 LangChain Integration Guide</h1>
+            <span class="badge-tag">First-Class Support</span>
+          </div>
+
+          <p class="lead-text">
+            Connect any LangChain application, LCEL pipeline, or autonomous agent to Alias AI with zero code modifications beyond passing <code>base_url</code>.
+          </p>
+
+          <!-- TAB BUTTONS -->
+          <div class="tab-switcher">
+            <button class="tab-btn" [class.active]="langchainTab() === 'basic'" (click)="langchainTab.set('basic')">
+              1. Basic ChatOpenAI
+            </button>
+            <button class="tab-btn" [class.active]="langchainTab() === 'lcel'" (click)="langchainTab.set('lcel')">
+              2. LCEL Chain Pipeline
+            </button>
+            <button class="tab-btn" [class.active]="langchainTab() === 'agent'" (click)="langchainTab.set('agent')">
+              3. Autonomous Agent with Tools
+            </button>
+            <button class="tab-btn" [class.active]="langchainTab() === 'streaming'" (click)="langchainTab.set('streaming')">
+              4. Streaming Callbacks
+            </button>
+          </div>
+
+          <!-- TAB 1: BASIC -->
+          @if (langchainTab() === 'basic') {
+            <div class="tab-content">
+              <h3>Standard LangChain ChatOpenAI Setup</h3>
+              <p>Point <code>ChatOpenAI</code> to your sovereign local airgap gateway:</p>
+
+              <div class="code-container">
+                <div class="code-header">
+                  <span class="code-lang">Python — LangChain Basic</span>
+                  <button class="btn-copy-code" (click)="copySnippet('lc-basic')">
+                    {{ isCopied('lc-basic') ? 'Copied!' : 'Copy' }}
+                  </button>
+                </div>
+                <pre class="code-block"><code>from langchain_openai import ChatOpenAI
+
+# Point LangChain directly to Alias AI sovereign local proxy
+llm = ChatOpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="alias-local-token",  # Cloud key stays safe in Alias AI
+    model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    temperature=0.2
+)
+
+# The prompt contains private VIN and German IBAN data:
+response = llm.invoke(
+    "Draft ADAC bill of sale for VIN WDB2110761A123456 and SEPA IBAN DE89 3704 0044 0532 0130 00"
+)
+
+# Output contains clean semantic placeholders (&lt;ALIAS_VIN_1&gt;, &lt;ALIAS_IBAN_1&gt;):
+print(response.content)</code></pre>
+              </div>
+            </div>
+          }
+
+          <!-- TAB 2: LCEL -->
+          @if (langchainTab() === 'lcel') {
+            <div class="tab-content">
+              <h3>LangChain Expression Language (LCEL) Pipeline</h3>
+              <p>Chain prompt templates, the airgapped LLM, and output parsers together:</p>
+
+              <div class="code-container">
+                <div class="code-header">
+                  <span class="code-lang">Python — LCEL Chain</span>
+                  <button class="btn-copy-code" (click)="copySnippet('lc-lcel')">
+                    {{ isCopied('lc-lcel') ? 'Copied!' : 'Copy' }}
+                  </button>
+                </div>
+                <pre class="code-block"><code>from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_openai import ChatOpenAI
+
+# 1. Define prompt template
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are an enterprise GDPR compliance legal counsel."),
+    ("user", "Audit tenant refund request for deposit IBAN &#123;iban&#125; at address &#123;address&#125;.")
+])
+
+# 2. Configure Airgap LLM
+llm = ChatOpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="alias-local-token",
+    model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+)
+
+# 3. Build LCEL Runnable Chain
+chain = prompt | llm | StrOutputParser()
+
+# 4. Invoke chain with confidential tenant data:
+# Neither the IBAN nor postal address will reach the cloud unmasked!
+result = chain.invoke(&#123;
+    "iban": "DE89 3704 0044 0532 0130 00",
+    "address": "Hauptstraße 42, 10115 Berlin"
+&#125;)
+print(result)</code></pre>
+              </div>
+            </div>
+          }
+
+          <!-- TAB 3: AGENT -->
+          @if (langchainTab() === 'agent') {
+            <div class="tab-content">
+              <h3>Autonomous LangChain Agent with Tool Calling</h3>
+              <p>
+                When autonomous agents invoke tools, sensitive credentials passed into tool arguments (e.g. database connection strings or API keys) are shielded from cloud prompts:
+              </p>
+
+              <div class="code-container">
+                <div class="code-header">
+                  <span class="code-lang">Python — Airgapped Tool-Calling Agent</span>
+                  <button class="btn-copy-code" (click)="copySnippet('lc-agent')">
+                    {{ isCopied('lc-agent') ? 'Copied!' : 'Copy' }}
+                  </button>
+                </div>
+                <pre class="code-block"><code>from langchain.agents import create_openai_tools_agent, AgentExecutor
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+@tool
+def query_telemetry(chassis_vin: str) -&gt; str:
+    """Query vehicle telemetry database for a specific chassis VIN."""
+    # Real vehicle lookup occurs strictly inside local network boundary:
+    return f"Vehicle telemetry OK for VIN &#123;chassis_vin&#125;. Odometer: 42,100km."
+
+tools = [query_telemetry]
+
+llm = ChatOpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="alias-local-token",
+    model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are an automotive diagnostics engineer."),
+    ("user", "&#123;input&#125;"),
+    MessagesPlaceholder(variable_name="agent_scratchpad"),
+])
+
+agent = create_openai_tools_agent(llm, tools, prompt)
+executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+# The agent reasons with &lt;ALIAS_VIN_1&gt; without cloud leakage:
+executor.invoke(&#123;"input": "Check diagnostic status for VIN WDB2110761A123456"&#125;)</code></pre>
+              </div>
+            </div>
+          }
+
+          <!-- TAB 4: STREAMING -->
+          @if (langchainTab() === 'streaming') {
+            <div class="tab-content">
+              <h3>Streaming Token Callbacks</h3>
+              <p>Stream tokens in real-time with zero buffering delay:</p>
+
+              <div class="code-container">
+                <div class="code-header">
+                  <span class="code-lang">Python — Streaming Callbacks</span>
+                  <button class="btn-copy-code" (click)="copySnippet('lc-stream')">
+                    {{ isCopied('lc-stream') ? 'Copied!' : 'Copy' }}
+                  </button>
+                </div>
+                <pre class="code-block"><code>from langchain_openai import ChatOpenAI
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+llm = ChatOpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="alias-local-token",
+    streaming=True,
+    callbacks=[StreamingStdOutCallbackHandler()]
+)
+
+# Streamed tokens print live with &lt;ALIAS_DB_URI_1&gt; placeholders:
+llm.invoke("Review database credentials postgres://fleet:p4ss@10.0.4.15/fleet")</code></pre>
+              </div>
+            </div>
+          }
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: LLAMAINDEX -->
+        <!-- ========================================== -->
+        <section id="llamaindex" class="doc-section">
+          <h1>LlamaIndex Integration</h1>
+          <p class="lead-text">
+            Build enterprise RAG pipelines with private corporate documents without cloud credential leakage.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Python — LlamaIndex</span>
+              <button class="btn-copy-code" (click)="copySnippet('llama-1')">
+                {{ isCopied('llama-1') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>from llama_index.llms.openai import OpenAI
+from llama_index.core import Settings
+
+# Point LlamaIndex directly to Alias AI local airgap
+Settings.llm = OpenAI(
+    api_base="http://127.0.0.1:8080/v1",
+    api_key="alias-local-token",
+    model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+)
+
+# All document queries, node synthesis, and summarization route through Alias AI
+response = Settings.llm.complete(
+    "Summarize lease contract with IBAN DE89 3704 0044 0532 0130 00"
+)
+print(response.text)</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: CURSOR IDE -->
+        <!-- ========================================== -->
+        <section id="cursor-ide" class="doc-section">
+          <h1>Cursor IDE & Copilot Setup</h1>
+          <p class="lead-text">
+            Airgap all inline AI completions (<code>Ctrl+K</code> / <code>Cmd+K</code>), Chat, and Composer agent workflows in Cursor.
+          </p>
+
+          <div class="steps-box">
+            <div class="step-row">
+              <span class="step-badge">1</span>
+              <div>
+                <strong>Launch Alias AI in Background:</strong>
+                <code>alias-ai start</code>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="step-badge">2</span>
+              <div>
+                <strong>Open Cursor Settings:</strong>
+                Press <code>Ctrl+,</code> (Windows/Linux) or <code>Cmd+,</code> (macOS). Navigate to <strong>Models</strong> &rarr; <strong>OpenAI API</strong>.
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="step-badge">3</span>
+              <div>
+                <strong>Override Base URL:</strong>
+                Toggle ON <em>"Override OpenAI Base URL"</em> and set the value to:
+                <div class="copy-field">
+                  <code>http://127.0.0.1:8080/v1</code>
+                  <button class="btn-copy-mini" (click)="copySnippet('cur-url')">
+                    {{ isCopied('cur-url') ? 'Copied!' : 'Copy' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="step-row">
+              <span class="step-badge">4</span>
+              <div>
+                <strong>Set Placeholder API Key:</strong>
+                Enter <code>alias-local-token</code> (your real upstream key is stored safely in Alias AI's <code>.env</code>).
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-box note">
+            <div class="alert-icon">💡</div>
+            <div class="alert-body">
+              <strong>Workspace Configuration:</strong> You can also commit this into your team's <code>.cursor/settings.json</code>:
+              <pre class="code-inline-block"><code>&#123;
+  "openai.baseUrl": "http://127.0.0.1:8080/v1",
+  "openai.apiKey": "alias-local-token"
+&#125;</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: CLAUDE CODE & TERMINAL AGENTS -->
+        <!-- ========================================== -->
+        <section id="claude-code" class="doc-section">
+          <h1>Claude Code, Aider & Terminal Agents</h1>
+          <p class="lead-text">
+            Route autonomous terminal coding agents (Claude Code, Aider, Cline, Windsurf) through Alias AI with zero code changes.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Bash — Terminal Agent Routing</span>
+              <button class="btn-copy-code" (click)="copySnippet('claude-agent')">
+                {{ isCopied('claude-agent') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code># Terminal 1: Start Alias AI Gateway
+alias-ai start
+
+# Terminal 2: Export variables and run agent
+export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
+export OPENAI_API_KEY="alias-local-token"
+
+# Launch your agent — all file diffs and tool calls are now airgapped:
+claude
+# or: aider --openai-api-base http://127.0.0.1:8080/v1</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: PYTHON SDK -->
+        <!-- ========================================== -->
+        <section id="python-sdk" class="doc-section">
+          <h1>Python (Official OpenAI SDK)</h1>
+          <p class="lead-text">
+            Use the official <code>openai</code> Python package (v1.0+) with Alias AI as a drop-in sovereign endpoint.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Python</span>
+              <button class="btn-copy-code" (click)="copySnippet('py-sdk')">
+                {{ isCopied('py-sdk') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>from openai import OpenAI
+
+# Connect to local sovereign airgap
+client = OpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="alias-local-token"
+)
+
+# Streaming completion with automatic local privacy preservation
+stream = client.chat.completions.create(
+    model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    messages=[
+        &#123;
+            "role": "user",
+            "content": "Investigate incident on host db-fleet.internal:5432 with key sk-proj-supersecretkey99"
+        &#125;
+    ],
+    stream=True
+)
+
+for chunk in stream:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="", flush=True)
+print()</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: NODEJS SDK -->
+        <!-- ========================================== -->
+        <section id="nodejs-sdk" class="doc-section">
+          <h1>Node.js & TypeScript SDK</h1>
+          <p class="lead-text">
+            Using the official <code>openai</code> npm package in Node.js, Next.js, or Express backends.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">TypeScript</span>
+              <button class="btn-copy-code" (click)="copySnippet('ts-sdk')">
+                {{ isCopied('ts-sdk') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>import OpenAI from 'openai';
+
+const openai = new OpenAI(&#123;
+  baseURL: 'http://127.0.0.1:8080/v1',
+  apiKey: 'alias-local-token',
+&#125;);
+
+async function main() &#123;
+  const completion = await openai.chat.completions.create(&#123;
+    model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+    messages: [
+      &#123; role: 'user', content: 'Check VIN WDB2110761A123456 warranty.' &#125;
+    ],
+  &#125;);
+
+  console.log(completion.choices[0].message.content);
+&#125;
+
+main();</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: REST API -->
+        <!-- ========================================== -->
+        <section id="rest-api" class="doc-section">
+          <h1>cURL & REST API Reference</h1>
+          <p class="lead-text">
+            Standard HTTP endpoints served by the local proxy on <code>http://127.0.0.1:8080</code>.
+          </p>
+
+          <div class="api-endpoint">
+            <div class="endpoint-header">
+              <span class="http-verb post">POST</span>
+              <span class="endpoint-path">/v1/chat/completions</span>
+            </div>
+            <p>OpenAI-compliant chat completions endpoint. Supports both JSON and Server-Sent Events (SSE) streaming.</p>
+          </div>
+
+          <div class="api-endpoint">
+            <div class="endpoint-header">
+              <span class="http-verb get">GET</span>
+              <span class="endpoint-path">/v1/models</span>
+            </div>
+            <p>Returns list of available upstream models supported by the target provider.</p>
+          </div>
+
+          <div class="api-endpoint">
+            <div class="endpoint-header">
+              <span class="http-verb get">GET</span>
+              <span class="endpoint-path">/health</span>
+            </div>
+            <p>Airgap health status, active vault secret count, and mathematical leakage verification.</p>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: LOCAL ENCLAVE & GEMMA 2 -->
+        <!-- ========================================== -->
+        <section id="ollama-setup" class="doc-section">
+          <h1>Ollama & CUDA Hardware Setup</h1>
+          <p class="lead-text">
+            Power local neural extraction with Google Gemma 2 running on your workstation's GPU.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">Bash — Ollama Installation & Setup</span>
+              <button class="btn-copy-code" (click)="copySnippet('ollama-cmd')">
+                {{ isCopied('ollama-cmd') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code># 1. Install Ollama (https://ollama.com)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 2. Pull Google Gemma 2 (2B parameter compact model)
+ollama pull gemma2:2b
+
+# 3. Verify Ollama is listening
+curl http://127.0.0.1:11434/api/tags</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: GEMMA NER -->
+        <!-- ========================================== -->
+        <section id="gemma-ner" class="doc-section">
+          <h1>Google Gemma 2 (2B) Named Entity Recognition</h1>
+          <p class="lead-text">
+            Deep semantic extraction for unstructured enterprise text, complex legal names, and multi-line addresses.
+          </p>
+          <p>
+            While regex detects structured tokens (IBANs, VINs, API keys) in &lt; 0.5ms, Google Gemma 2 extracts contextual entities such as:
+          </p>
+          <ul class="bullet-list">
+            <li>German landlord and tenant names in natural language sentences.</li>
+            <li>Multi-line postal addresses and street names.</li>
+            <li>Corporate entity names, flight booking codes, and contract parties.</li>
+          </ul>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: HYBRID ENCLAVE -->
+        <!-- ========================================== -->
+        <section id="hybrid-enclave" class="doc-section">
+          <h1>Hybrid Enclave Fallback (&lt; 0.5ms Regex)</h1>
+          <p class="lead-text">
+            Zero dependencies and zero friction. Alias AI runs seamlessly even without GPU or Ollama.
+          </p>
+          <p>
+            If Ollama is not installed or the local machine does not have an NVIDIA GPU, Alias AI automatically falls back to its deterministic regex engine:
+          </p>
+          <ul class="bullet-list">
+            <li><strong>Latency:</strong> &lt; 0.5ms execution time.</li>
+            <li><strong>Memory:</strong> &lt; 15MB Node.js process RSS.</li>
+            <li><strong>Portability:</strong> Works on Windows, macOS (Apple Silicon & Intel), and Linux with pure Node.js standard library.</li>
+          </ul>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: EU AI ACT -->
+        <!-- ========================================== -->
+        <section id="eu-ai-act" class="doc-section">
+          <h1>EU AI Act Article 14 Compliance</h1>
+          <p class="lead-text">
+            Technical airgap governance and human oversight enforcement.
+          </p>
+          <p>
+            Under <strong>Article 14 of Regulation (EU) 2024/1689 (EU AI Act)</strong>, high-risk AI systems must be designed and developed with appropriate human oversight and technical safeguards to prevent risks to fundamental rights, health, and security.
+          </p>
+          <p>
+            Alias AI fulfills Article 14 by:
+          </p>
+          <ul class="bullet-list">
+            <li>Providing operators with complete inspection visibility (<code>alias-ai sanitize</code> and <code>/vault</code>).</li>
+            <li>Preventing opaque automated leakage to foreign cloud providers.</li>
+            <li>Generating tamper-evident cryptographic audit logs for supervisory authorities.</li>
+          </ul>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: GDPR ART 25 -->
+        <!-- ========================================== -->
+        <section id="gdpr-art25" class="doc-section">
+          <h1>GDPR Article 25 (Privacy by Design & Default)</h1>
+          <p class="lead-text">
+            Mathematical data minimization implemented at the source.
+          </p>
+          <p>
+            <strong>GDPR Article 25(1)</strong> mandates that data controllers implement appropriate technical and organizational measures (such as pseudonymisation and data minimisation) designed to implement data-protection principles effectively.
+          </p>
+          <p>
+            Alias AI satisfies Article 25 by design:
+          </p>
+          <ul class="bullet-list">
+            <li><strong>Default De-identification:</strong> Unsanitized credentials never traverse the egress socket.</li>
+            <li><strong>Ephemeral Keys:</strong> RAM vaults are non-persisted and automatically discarded.</li>
+            <li><strong>Auditability:</strong> Verifiable zero-leakage proof for Data Protection Officers (DPO).</li>
+          </ul>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: AUDIT ATTESTATION -->
+        <!-- ========================================== -->
+        <section id="audit-attestation" class="doc-section">
+          <h1>Cryptographic Audit Attestation</h1>
+          <p class="lead-text">
+            Every inference session generates an immutable SHA-256 attestation artifact for enterprise GRC pipelines.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">JSON — Enterprise Audit Artifact</span>
+              <button class="btn-copy-code" (click)="copySnippet('audit-json')">
+                {{ isCopied('audit-json') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>&#123;
+  "timestamp": "2026-09-10T18:30:00Z",
+  "session_id": "sess_9f81a7b3c2e148",
+  "governance": &#123;
+    "gdpr_article_25": "VERIFIED_COMPLIANT",
+    "eu_ai_act_article_14": "VERIFIED_COMPLIANT"
+  &#125;,
+  "metrics": &#123;
+    "total_masked": 4,
+    "categories": ["AUTOMOTIVE_VIN", "GERMAN_IBAN", "API_KEY"],
+    "entropy_leakage": "0.00%",
+    "enclave_latency_ms": 0.32
+  &#125;,
+  "integrity_hash": "a8f1b2c4e6d7890abcdef1234567890abcdef1234567890abcdef1234567890"
+&#125;</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: DOCKER & K8S -->
+        <!-- ========================================== -->
+        <section id="docker-k8s" class="doc-section">
+          <h1>Docker & Kubernetes Sidecar Deployment</h1>
+          <p class="lead-text">
+            Run Alias AI as a Kubernetes Sidecar container alongside your backend workloads.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-lang">YAML — Kubernetes Sidecar Spec</span>
+              <button class="btn-copy-code" (click)="copySnippet('k8s-spec')">
+                {{ isCopied('k8s-spec') ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <pre class="code-block"><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-with-airgap
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        # 1. Main Application
+        - name: my-app
+          image: my-app:latest
+          env:
+            - name: OPENAI_BASE_URL
+              value: "http://127.0.0.1:8080/v1"
+            - name: OPENAI_API_KEY
+              value: "alias-local-token"
+
+        # 2. Sovereign Airgap Sidecar
+        - name: alias-ai-gateway
+          image: node:20-alpine
+          command: ["npx", "alias-ai", "start", "--port", "8080"]
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloud-api-keys
+                  key: nvidia-nim-key</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: TROUBLESHOOTING -->
+        <!-- ========================================== -->
+        <section id="troubleshooting" class="doc-section">
+          <h1>Troubleshooting & Diagnostics</h1>
+          <p class="lead-text">
+            Solutions to common configuration, network, and runtime issues.
+          </p>
+
+          <div class="faq-item">
+            <h3 class="faq-q">Port 8080 is already in use by another process</h3>
+            <p class="faq-a">
+              Alias AI automatically attempts to bind to <code>8081</code> if <code>8080</code> is busy. You can also explicitly specify any port:
+            </p>
+            <pre class="code-inline-block"><code>alias-ai start --port 9090</code></pre>
+          </div>
+
+          <div class="faq-item">
+            <h3 class="faq-q">Where do I put my real cloud API key?</h3>
+            <p class="faq-a">
+              Store your real NVIDIA or OpenAI API key in a <code>.env</code> file in your current working directory or in <code>~/.alias-ai/.env</code>:
+            </p>
+            <pre class="code-inline-block"><code>OPENAI_API_KEY=nvapi-your-real-nvidia-key
+UPSTREAM_URL=https://integrate.api.nvidia.com/v1</code></pre>
+            <p>Your client tools only ever receive or transmit <code>alias-local-token</code>.</p>
+          </div>
+
+          <div class="faq-item">
+            <h3 class="faq-q">Why does my LLM output have &lt;ALIAS_*&gt; tokens?</h3>
+            <p class="faq-a">
+              This is the default privacy-first behavior. By returning placeholders, Alias AI delivers zero-latency streaming. If your application requires real values in the final text on localhost, pass the <code>-r</code> (or <code>--rehydrate</code>) flag:
+            </p>
+            <pre class="code-inline-block"><code>alias-ai start --rehydrate</code></pre>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- SECTION: FAQ -->
+        <!-- ========================================== -->
+        <section id="faq" class="doc-section">
+          <h1>Frequently Asked Questions (FAQ)</h1>
+
+          <div class="faq-item">
+            <h3 class="faq-q">Does Alias AI add latency to my LLM calls?</h3>
+            <p class="faq-a">
+              No perceptible latency. The deterministic regex classifier executes in <strong>under 0.5 milliseconds</strong>, which is negligible compared to the 200ms – 1500ms network roundtrip of cloud LLMs.
+            </p>
+          </div>
+
+          <div class="faq-item">
+            <h3 class="faq-q">Does the cloud model get confused by &lt;ALIAS_*&gt; tokens?</h3>
+            <p class="faq-a">
+              Frontier models (like NVIDIA Nemotron-70B, GPT-4o, and Claude 3.5 Sonnet) understand typed semantic placeholders naturally. Because tokens like <code>&lt;ALIAS_VEHICLE_VIN_1&gt;</code> preserve entity semantics and sentence grammar, model reasoning accuracy remains virtually identical to unmasked text.
+            </p>
+          </div>
+
+          <div class="faq-item">
+            <h3 class="faq-q">Can an attacker recover my secrets from prompt logs in the cloud?</h3>
+            <p class="faq-a">
+              No. Because secrets never leave your local RAM, cloud logs only ever record the opaque <code>&lt;ALIAS_*&gt;</code> tokens. The mathematical leakage score is verified at 0.00%.
+            </p>
+          </div>
+        </section>
+
+        <!-- SECTION PAGINATION / NEXT & PREV -->
+        <div class="docs-pagination">
+          @if (getPreviousSection(); as prev) {
+            <button class="btn-page prev" (click)="selectSection(prev.id)">
+              <span class="page-dir">← Previous</span>
+              <span class="page-name">{{ prev.title }}</span>
+            </button>
+          } @else {
+            <div></div>
+          }
+
+          @if (getNextSection(); as next) {
+            <button class="btn-page next" (click)="selectSection(next.id)">
+              <span class="page-dir">Next →</span>
+              <span class="page-name">{{ next.title }}</span>
+            </button>
+          }
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="docs-footer">
+          <div class="footer-left">
+            <span>Alias AI v0.1.0 · Open Source (Apache 2.0)</span>
+          </div>
+          <div class="footer-right">
+            <a href="https://github.com/Chandukasireddy/Alias_AI" target="_blank" rel="noopener">GitHub Repository</a>
+            <span>·</span>
+            <a routerLink="/">Airgap Simulator</a>
+            <span>·</span>
+            <a href="https://github.com/Chandukasireddy/Alias_AI/issues" target="_blank" rel="noopener">Report Issue</a>
+          </div>
+        </footer>
+      </div>
+
+      <!-- RIGHT SIDEBAR (ON THIS PAGE) -->
+      <aside class="docs-toc">
+        <div class="toc-container">
+          <span class="toc-heading">On this page</span>
+          <ul class="toc-list">
+            <li><a (click)="selectSection('overview')" [class.active]="activeSection() === 'overview'">What is Alias AI?</a></li>
+            <li><a (click)="selectSection('quickstart')" [class.active]="activeSection() === 'quickstart'">30-Second Quickstart</a></li>
+            <li><a (click)="selectSection('privacy-ladder')" [class.active]="activeSection() === 'privacy-ladder'">5-Level Privacy Ladder</a></li>
+            <li><a (click)="selectSection('zero-leakage')" [class.active]="activeSection() === 'zero-leakage'">Zero-Leakage Guarantee</a></li>
+            <li><a (click)="selectSection('entity-classifiers')" [class.active]="activeSection() === 'entity-classifiers'">Supported Entities</a></li>
+            <li><a (click)="selectSection('cli-repl')" [class.active]="activeSection() === 'cli-repl'">CLI & Commands</a></li>
+            <li><a (click)="selectSection('langchain')" [class.active]="activeSection() === 'langchain'">LangChain Integration</a></li>
+            <li><a (click)="selectSection('cursor-ide')" [class.active]="activeSection() === 'cursor-ide'">Cursor IDE</a></li>
+            <li><a (click)="selectSection('eu-ai-act')" [class.active]="activeSection() === 'eu-ai-act'">EU AI Act & GDPR</a></li>
+            <li><a (click)="selectSection('troubleshooting')" [class.active]="activeSection() === 'troubleshooting'">Troubleshooting</a></li>
+          </ul>
+
+          <div class="toc-cta-box">
+            <span class="cta-badge">Ready to run?</span>
+            <p class="cta-p">Start your sovereign local airgap in 1 command:</p>
+            <div class="cta-code mono" (click)="copySnippet('toc-npx')">
+              <span>$ npx alias-ai start</span>
+              <span class="cta-copy-text">{{ isCopied('toc-npx') ? '✓' : 'Copy' }}</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+</div>
+
