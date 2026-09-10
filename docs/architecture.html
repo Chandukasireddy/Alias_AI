@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alias AI — Interactive System Architecture & Data-Flow</title>
+  <!-- Tailwind CSS -->
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #0f172a;
+      --card-border: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-green: #10b981;
+      --accent-cyan: #38bdf8;
+      --accent-purple: #a855f7;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Grid pattern */
+    .bg-grid {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    }
+
+    /* CRITICAL FIX: Ensure SVG text NEVER inherits stroke or filter blur */
+    svg text, .arch-node text {
+      stroke: none !important;
+      stroke-width: 0 !important;
+      text-rendering: geometricPrecision;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      user-select: none;
+    }
+
+    /* Target ONLY the background rect for node highlights, NEVER the text! */
+    .arch-node {
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    .arch-node rect.node-bg {
+      transition: stroke 0.2s ease, stroke-width 0.2s ease, fill 0.2s ease;
+    }
+    .arch-node:hover rect.node-bg {
+      stroke: #38bdf8 !important;
+      stroke-width: 2px !important;
+    }
+    .arch-node.active-step-source rect.node-bg {
+      stroke: #38bdf8 !important;
+      stroke-width: 2.5px !important;
+      fill: #0c2338 !important;
+    }
+    .arch-node.active-step-target rect.node-bg {
+      stroke: #10b981 !important;
+      stroke-width: 2.5px !important;
+      fill: #06281e !important;
+    }
+
+    /* Soft dimming: Keep text readable at 65% instead of washing out at 25% */
+    .arch-node.node-dimmed {
+      opacity: 0.65;
+    }
+
+    /* Animated Trace Connections */
+    .arch-edge {
+      transition: stroke 0.25s ease, stroke-width 0.25s ease, opacity 0.25s ease;
+    }
+    .arch-edge.edge-dimmed {
+      opacity: 0.25;
+    }
+    .arch-edge.edge-active {
+      stroke: #10b981 !important;
+      stroke-width: 3px !important;
+    }
+    .arch-edge.edge-active-rehydrate {
+      stroke: #38bdf8 !important;
+      stroke-width: 3px !important;
+    }
+
+    /* Flowing Dash Animation for active edge */
+    @keyframes dashflow {
+      to {
+        stroke-dashoffset: -32;
+      }
+    }
+    .animated-pulse-line {
+      stroke-dasharray: 8, 8;
+      animation: dashflow 1s linear infinite;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#090d16] text-slate-100 flex flex-col antialiased selection:bg-emerald-500/30">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-slate-800 bg-[#0d1322]/95 backdrop-blur sticky top-0 z-40 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3.5">
+      <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+        <svg class="w-5 h-5 text-slate-950 font-bold" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-lg tracking-tight text-white flex items-center gap-2">
+            Alias AI <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">v0.1.0 Architecture</span>
+          </h1>
+          <span class="text-xs text-slate-400 border-l border-slate-700 pl-2">Zero-Knowledge Privacy Airgap Gateway</span>
+        </div>
+        <p class="text-xs text-slate-400">Interactive Technical Architecture &amp; Data-Flow (Vector Sharp)</p>
+      </div>
+    </div>
+
+    <!-- Quick Status Badges & Actions -->
+    <div class="flex items-center gap-2.5 flex-wrap">
+      <div class="px-2.5 py-1 rounded-md bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-xs font-mono flex items-center gap-1.5 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        E_leak: 0.00% [VERIFIED]
+      </div>
+      <div class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 text-slate-300 text-xs font-mono flex items-center gap-1">
+        <span>Port:</span> <strong class="text-cyan-400 font-bold">127.0.0.1:8080</strong>
+      </div>
+      <div class="px-2.5 py-1 rounded-md bg-purple-950/60 border border-purple-500/30 text-purple-300 text-xs font-mono">
+        Edge NER: Gemma 2 (2B)
+      </div>
+      <div class="px-2.5 py-1 rounded-md bg-amber-950/60 border border-amber-500/30 text-amber-300 text-xs font-mono">
+        Cloud: NVIDIA NIM Nemotron-70B
+      </div>
+
+      <!-- Action Buttons -->
+      <button id="btnPrivacyLadder" class="ml-2 px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        Privacy Ladder
+      </button>
+      <button id="btnAirgapSandbox" class="px-3 py-1.5 rounded-md bg-emerald-600/20 hover:bg-emerald-600/30 text-xs text-emerald-300 border border-emerald-500/40 transition flex items-center gap-1.5 font-medium">
+        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        Live Airgap Tester
+      </button>
+      <button id="btnDownloadSpec" class="px-2.5 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition" title="View / Export JSON Spec">
+        { } Spec
+      </button>
+    </div>
+  </header>
+
+  <!-- Interactive Scenario Trace Toolbar -->
+  <section class="bg-[#0b101c] border-b border-slate-800 px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 z-30 shadow-inner">
+    <div class="flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-400 animate-spin" style="animation-duration: 8s;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          Data-Flow Trace:
+        </span>
+        <select id="scenarioSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-emerald-500 shadow-sm cursor-pointer">
+          <option value="trace-standard-airgap">1. Standard Airgap Flow (Pass-Through Placeholders)</option>
+          <option value="trace-sliding-rehydration">2. Sliding-Window Re-hydration Flow (alias-ai start -r)</option>
+          <option value="trace-hybrid-gemma">3. Hybrid Privacy with Local Gemma 2 NER (--gemma)</option>
+          <option value="trace-diagnostics-audit">4. System Health &amp; Doctor Audit (alias-ai doctor)</option>
+        </select>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 p-0.5 rounded-lg shadow-sm">
+        <button id="btnPrevStep" class="p-1.5 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed" title="Previous Step">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"/></svg>
+        </button>
+        <button id="btnPlayPause" class="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-semibold text-xs flex items-center gap-1.5 transition">
+          <svg id="playIcon" class="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"/></svg>
+          <span id="playText">Play Trace</span>
+        </button>
+        <button id="btnNextStep" class="p-1.5 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed" title="Next Step">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"/></svg>
+        </button>
+        <button id="btnResetTrace" class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200" title="Reset to Start">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 text-xs text-slate-400 pl-2">
+        <span>Step <strong id="currentStepNum" class="text-emerald-400 font-mono">1</strong> of <span id="totalStepsNum" class="font-mono">6</span></span>
+      </div>
+
+      <div class="flex items-center gap-1.5 text-xs text-slate-400 pl-2 border-l border-slate-800">
+        <span>Speed:</span>
+        <button class="btn-speed px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 hover:bg-slate-700" data-speed="0.5">0.5x</button>
+        <button class="btn-speed px-2 py-0.5 rounded text-xs bg-emerald-600/30 text-emerald-400 border border-emerald-500/40" data-speed="1.0">1x</button>
+        <button class="btn-speed px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 hover:bg-slate-700" data-speed="2.0">2x</button>
+      </div>
+    </div>
+
+    <!-- Canvas Controls & Sidebar Toggle -->
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <input type="text" id="nodeSearch" placeholder="Find component or rule..." class="bg-slate-900 border border-slate-700 rounded-lg pl-7 pr-3 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-44">
+        <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 p-0.5 rounded-lg">
+        <button id="btnZoomIn" class="p-1 px-2 rounded hover:bg-slate-800 text-xs font-semibold text-slate-300" title="Zoom In">+</button>
+        <button id="btnZoomOut" class="p-1 px-2 rounded hover:bg-slate-800 text-xs font-semibold text-slate-300" title="Zoom Out">-</button>
+        <button id="btnZoom100" class="p-1 px-2 rounded hover:bg-slate-800 text-xs text-cyan-400 font-mono" title="Native 1:1 Pixel Sharpness">100%</button>
+        <button id="btnZoomReset" class="p-1 px-2 rounded hover:bg-slate-800 text-xs text-slate-400" title="Fit to Screen">Fit</button>
+      </div>
+      <button id="btnToggleSidebar" class="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white" title="Toggle Inspector Sidebar">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- Main Workspace Area -->
+  <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+    <!-- Architecture Canvas Container -->
+    <div class="flex-1 overflow-auto bg-grid relative p-4 flex items-center justify-center min-h-[600px]" id="canvasContainer">
+      
+      <!-- SVG Canvas (100% vector sharp, no raster filters on text) -->
+      <svg id="architectureSvg" viewBox="0 0 1440 760" class="w-full max-w-[1440px] h-auto select-none" style="min-width: 1050px;">
+        <defs>
+          <!-- Marker Arrows -->
+          <marker id="arrow-default" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b"/>
+          </marker>
+          <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10b981"/>
+          </marker>
+          <marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8"/>
+          </marker>
+          <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#c084fc"/>
+          </marker>
+          <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#fbbf24"/>
+          </marker>
+
+          <!-- Zone Gradients -->
+          <linearGradient id="grad-zone-clients" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#0f172a" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#090d16" stop-opacity="0.95"/>
+          </linearGradient>
+          <linearGradient id="grad-zone-gateway" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#064e3b" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#022c22" stop-opacity="0.4"/>
+          </linearGradient>
+          <linearGradient id="grad-zone-enclave" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#115e59" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#042f2e" stop-opacity="0.35"/>
+          </linearGradient>
+          <linearGradient id="grad-zone-cloud" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#78350f" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#451a03" stop-opacity="0.35"/>
+          </linearGradient>
+        </defs>
+
+        <!-- ================= BACKGROUND ARCHITECTURAL ZONES ================= -->
+        
+        <!-- Zone 1: Clients & Agent Layer -->
+        <g id="zone-bg-clients">
+          <rect x="25" y="25" width="245" height="710" rx="16" fill="url(#grad-zone-clients)" stroke="#1e293b" stroke-width="1.5" />
+          <text x="45" y="58" fill="#38bdf8" font-size="13" font-weight="700" letter-spacing="1">CLIENT &amp; AGENT LAYER</text>
+          <text x="45" y="76" fill="#94a3b8" font-size="11">Local Developer RAM (Level 0)</text>
+          <rect x="195" y="44" width="60" height="20" rx="4" fill="#0284c7" fill-opacity="0.2" stroke="#38bdf8" stroke-width="1" />
+          <text x="225" y="58" fill="#38bdf8" font-size="10" font-weight="600" text-anchor="middle">INGRESS</text>
+        </g>
+
+        <!-- Zone 2: Local Gateway & Sovereign Enclave Combined Boundary -->
+        <g id="zone-bg-sovereign">
+          <rect x="290" y="25" width="720" height="710" rx="16" fill="#07131e" stroke="#10b981" stroke-width="1.75" stroke-dasharray="8 5" stroke-opacity="0.6"/>
+          <text x="315" y="58" fill="#10b981" font-size="13.5" font-weight="700" letter-spacing="1">SOVEREIGN WORKSTATION BOUNDARY (LOCALHOST)</text>
+          <text x="315" y="76" fill="#6ee7b7" font-size="11">Zero-Knowledge Enclave • 0.00% Private Entropy Leakage Guaranteed</text>
+          <rect x="850" y="44" width="145" height="22" rx="4" fill="#065f46" fill-opacity="0.5" stroke="#10b981" stroke-width="1" />
+          <text x="922" y="59" fill="#34d399" font-size="10.5" font-weight="700" text-anchor="middle">GDPR ART. 25 ENCLAVE</text>
+        </g>
+
+        <!-- Inner Zone 2A: Transparent Gateway (Port 8080) -->
+        <g id="zone-bg-gateway">
+          <rect x="310" y="95" width="280" height="425" rx="12" fill="url(#grad-zone-gateway)" stroke="#10b981" stroke-width="1" stroke-opacity="0.45"/>
+          <text x="328" y="122" fill="#6ee7b7" font-size="12" font-weight="700">HTTP REVERSE PROXY</text>
+          <text x="328" y="138" fill="#94a3b8" font-size="10.5">127.0.0.1:8080 (OpenAI Compatible)</text>
+        </g>
+
+        <!-- Inner Zone 2B: Local Enclave & Ephemeral Vault -->
+        <g id="zone-bg-enclave">
+          <rect x="615" y="95" width="375" height="620" rx="12" fill="url(#grad-zone-enclave)" stroke="#14b8a6" stroke-width="1" stroke-opacity="0.45"/>
+          <text x="635" y="122" fill="#2dd4bf" font-size="12" font-weight="700">EPHEMERAL PRIVACY ENCLAVE</text>
+          <text x="635" y="138" fill="#94a3b8" font-size="10.5">Volatile Memory Vault &amp; Egress Gate</text>
+        </g>
+
+        <!-- Inner Zone 2C: Local Gemma 2 Model (Ollama) -->
+        <g id="zone-bg-local-ai">
+          <rect x="310" y="540" width="280" height="175" rx="12" fill="#2e1065" fill-opacity="0.3" stroke="#a855f7" stroke-width="1" stroke-opacity="0.45"/>
+          <text x="328" y="565" fill="#c084fc" font-size="12" font-weight="700">LOCAL NEURAL NER (PORT 11434)</text>
+          <text x="328" y="581" fill="#94a3b8" font-size="10.5">Ollama Edge Service (Gemma 2 2B)</text>
+        </g>
+
+        <!-- Airgap Network Wall / Firewall Barrier -->
+        <g id="airgap-barrier">
+          <line x1="1035" y1="25" x2="1035" y2="735" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="6 4" stroke-opacity="0.7"/>
+          <rect x="1015" y="360" width="40" height="42" rx="8" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="1035" y="386" fill="#f59e0b" font-size="16" text-anchor="middle">🔒</text>
+          <text x="1035" y="418" fill="#f59e0b" font-size="10" font-weight="700" text-anchor="middle">AIRGAP</text>
+        </g>
+
+        <!-- Zone 5: Untrusted Cloud Reasoning Layer -->
+        <g id="zone-bg-cloud">
+          <rect x="1055" y="25" width="360" height="710" rx="16" fill="url(#grad-zone-cloud)" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.45"/>
+          <text x="1075" y="58" fill="#fbbf24" font-size="13" font-weight="700" letter-spacing="1">UNTRUSTED CLOUD BOUNDARY</text>
+          <text x="1075" y="76" fill="#d97706" font-size="11">Remote Frontier Reasoning LLMs (Level 3)</text>
+          <rect x="1310" y="44" width="90" height="20" rx="4" fill="#78350f" fill-opacity="0.5" stroke="#f59e0b" stroke-width="1" />
+          <text x="1355" y="58" fill="#fcd34d" font-size="10" font-weight="600" text-anchor="middle">TLS EGRESS</text>
+        </g>
+
+
+        <!-- ================= CLEAN CONNECTION PATHS (NON-OVERLAPPING) ================= -->
+        <g id="svgEdgesGroup">
+
+          <!-- Edge 1: Cursor -> Proxy Server -->
+          <path id="conn-cursor-gateway" class="arch-edge" d="M 245 150 C 280 150, 290 190, 325 190" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-default)"/>
+          <g transform="translate(285, 150)" pointer-events="none">
+            <rect x="-35" y="-10" width="70" height="20" rx="10" fill="#0b1322" stroke="#334155" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10.5" font-weight="600" fill="#cbd5e1">POST /v1</text>
+          </g>
+
+          <!-- Edge 2: Terminal REPL -> Proxy Server -->
+          <path id="conn-repl-gateway" class="arch-edge" d="M 245 300 C 285 300, 295 235, 325 235" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-default)"/>
+          <g transform="translate(285, 275)" pointer-events="none">
+            <rect x="-35" y="-10" width="70" height="20" rx="10" fill="#0b1322" stroke="#334155" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10.5" font-weight="600" fill="#cbd5e1">Loopback</text>
+          </g>
+
+          <!-- Edge 3: Angular SPA -> Proxy Server -->
+          <path id="conn-spa-gateway" class="arch-edge" d="M 245 450 C 290 450, 295 270, 325 270" fill="none" stroke="#64748b" stroke-width="1.75" stroke-dasharray="4 3" marker-end="url(#arrow-default)"/>
+          <g transform="translate(285, 395)" pointer-events="none">
+            <rect x="-42" y="-10" width="84" height="20" rx="10" fill="#0b1322" stroke="#334155" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10.5" font-weight="600" fill="#cbd5e1">GET /status</text>
+          </g>
+
+          <!-- Edge 4: Proxy Server -> Aliasing Engine Core -->
+          <path id="conn-gateway-aliaser" class="arch-edge" d="M 565 205 L 630 205" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow-default)"/>
+          <g transform="translate(598, 185)" pointer-events="none">
+            <rect x="-36" y="-10" width="72" height="20" rx="10" fill="#042f2e" stroke="#14b8a6" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10.5" font-weight="700" fill="#5eead4">sanitize()</text>
+          </g>
+
+          <!-- Edge 5: Aliasing Engine -> Ephemeral Vault -->
+          <path id="conn-aliaser-vault" class="arch-edge" d="M 800 240 L 800 280" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow-default)"/>
+          <g transform="translate(855, 260)" pointer-events="none">
+            <rect x="-40" y="-10" width="80" height="20" rx="10" fill="#0f172a" stroke="#2dd4bf" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10.5" font-weight="700" fill="#2dd4bf">Store Map()</text>
+          </g>
+
+          <!-- Edge 6: Aliasing Engine -> Gemma 2 (Ollama) (Clear corridor on left of enclave) -->
+          <path id="conn-aliaser-gemma" class="arch-edge" d="M 640 230 C 590 250, 565 520, 520 600" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrow-default)"/>
+          <g transform="translate(570, 470)" pointer-events="none">
+            <rect x="-44" y="-10" width="88" height="20" rx="10" fill="#2e1065" stroke="#a855f7" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10" font-weight="700" fill="#d8b4fe">POST 11434</text>
+          </g>
+
+          <!-- Edge 7: Aliasing Engine -> Egress Firewall -->
+          <path id="conn-aliaser-firewall" class="arch-edge" d="M 800 385 L 800 435" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow-default)"/>
+          <g transform="translate(860, 410)" pointer-events="none">
+            <rect x="-46" y="-10" width="92" height="20" rx="10" fill="#052e16" stroke="#10b981" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10" font-weight="700" fill="#4ade80">E_leak Check</text>
+          </g>
+
+          <!-- Edge 8: Egress Firewall -> Proxy Server -->
+          <path id="conn-firewall-gateway" class="arch-edge" d="M 635 480 C 580 480, 575 260, 565 240" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow-default)"/>
+          <g transform="translate(585, 360)" pointer-events="none">
+            <rect x="-38" y="-10" width="76" height="20" rx="10" fill="#052e16" stroke="#10b981" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10.5" font-weight="700" fill="#4ade80">0.00% OK</text>
+          </g>
+
+          <!-- Edge 9: Proxy Server -> NVIDIA NIM (Overhead Highway: y=68) -->
+          <path id="conn-gateway-nvidia" class="arch-edge" d="M 545 150 C 620 55, 960 55, 1070 190" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow-default)"/>
+          <g transform="translate(800, 55)" pointer-events="none">
+            <rect x="-110" y="-11" width="220" height="22" rx="11" fill="#1c1917" stroke="#f59e0b" stroke-width="1.2"/>
+            <text x="0" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#fbbf24">TLS EGRESS (PLACEHOLDERS ONLY)</text>
+          </g>
+
+          <!-- Edge 10: Proxy Server -> OpenAI Fallback (Clear lower corridor under Vault, avoiding boxes) -->
+          <path id="conn-gateway-openai" class="arch-edge" d="M 565 280 C 600 340, 600 550, 630 550 L 980 550 C 1030 550, 1050 490, 1070 480" fill="none" stroke="#64748b" stroke-width="1.75" stroke-dasharray="5 3" marker-end="url(#arrow-default)"/>
+          <g transform="translate(800, 550)" pointer-events="none">
+            <rect x="-55" y="-10" width="110" height="20" rx="10" fill="#1c1917" stroke="#78350f" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10" font-weight="600" fill="#f59e0b">OpenAI Fallback</text>
+          </g>
+
+          <!-- Edge 11: NVIDIA NIM -> Proxy Server (Inbound SSE) -->
+          <path id="conn-nvidia-gateway-sse" class="arch-edge" d="M 1070 230 C 950 250, 720 225, 565 225" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-default)"/>
+          <g transform="translate(820, 245)" pointer-events="none">
+            <rect x="-60" y="-10" width="120" height="20" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10.5" font-weight="600" fill="#38bdf8">SSE Stream (data: ...)</text>
+          </g>
+
+          <!-- Edge 12: Proxy Server -> Sliding Re-hydrator -->
+          <path id="conn-gateway-rehydrator" class="arch-edge" d="M 450 305 C 450 490, 600 585, 635 600" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow-default)"/>
+          <g transform="translate(515, 520)" pointer-events="none">
+            <rect x="-45" y="-10" width="90" height="20" rx="10" fill="#082f49" stroke="#38bdf8" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10.5" font-weight="700" fill="#38bdf8">-r Re-hydrate</text>
+          </g>
+
+          <!-- Edge 13: Sliding Re-hydrator -> Ephemeral Vault (Outer right margin x=975) -->
+          <path id="conn-rehydrator-vault" class="arch-edge" d="M 945 590 C 980 590, 980 340, 945 340" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-default)"/>
+          <g transform="translate(980, 465)" pointer-events="none">
+            <rect x="-45" y="-10" width="90" height="20" rx="10" fill="#0f172a" stroke="#2dd4bf" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10" font-weight="700" fill="#2dd4bf">Reverse Map</text>
+          </g>
+
+          <!-- Edge 14: Proxy Server / Re-hydrator -> Client Stream -->
+          <path id="conn-gateway-client-stream" class="arch-edge" d="M 325 215 C 290 215, 275 175, 245 175" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-default)"/>
+          <g transform="translate(285, 195)" pointer-events="none">
+            <rect x="-45" y="-10" width="90" height="20" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+            <text x="0" y="4" text-anchor="middle" font-size="10" font-weight="700" fill="#38bdf8">Stream Output</text>
+          </g>
+        </g>
+
+        <!-- Dynamic Animated Pulse Line & Indicator Dot -->
+        <path id="activePulseLine" class="animated-pulse-line hidden" d="" fill="none" stroke="#10b981" stroke-width="3.5"/>
+        <circle id="activeParticleDot" class="hidden" r="6" fill="#38bdf8" stroke="#ffffff" stroke-width="2">
+          <animateMotion id="packetAnim" dur="1.2s" repeatCount="indefinite" path=""/>
+        </circle>
+
+
+        <!-- ================= COMPONENT NODES (VECTOR SHARP) ================= -->
+        <g id="svgNodesGroup">
+
+          <!-- 1. Cursor IDE Agent Node -->
+          <g id="node-client-cursor" class="arch-node" data-node-id="client-cursor" transform="translate(45, 105)">
+            <rect class="node-bg" width="205" height="95" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="95" rx="2" fill="#38bdf8" />
+            <text x="18" y="28" fill="#ffffff" font-size="13" font-weight="700">Cursor / AI IDE</text>
+            <text x="18" y="46" fill="#94a3b8" font-size="11">Agent Client (.cursor/settings.json)</text>
+            <rect x="18" y="58" width="90" height="20" rx="4" fill="#1e293b" />
+            <text x="63" y="72" fill="#38bdf8" font-size="10" font-weight="700" text-anchor="middle">127.0.0.1:8080</text>
+            <circle cx="188" cy="24" r="4.5" fill="#38bdf8" />
+          </g>
+
+          <!-- 2. Terminal REPL Chat Node -->
+          <g id="node-client-chat-repl" class="arch-node" data-node-id="client-chat-repl" transform="translate(45, 255)">
+            <rect class="node-bg" width="205" height="95" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="95" rx="2" fill="#38bdf8" />
+            <text x="18" y="28" fill="#ffffff" font-size="13" font-weight="700">Interactive Chat REPL</text>
+            <text x="18" y="46" fill="#94a3b8" font-size="11">src/chat.js (Antigravity Style)</text>
+            <rect x="18" y="58" width="115" height="20" rx="4" fill="#1e293b" />
+            <text x="75" y="72" fill="#34d399" font-size="10" font-weight="700" text-anchor="middle">/vault • /rehydrate</text>
+            <circle cx="188" cy="24" r="4.5" fill="#34d399" />
+          </g>
+
+          <!-- 3. Angular Frontend SPA Node -->
+          <g id="node-client-frontend-spa" class="arch-node" data-node-id="client-frontend-spa" transform="translate(45, 405)">
+            <rect class="node-bg" width="205" height="95" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="95" rx="2" fill="#38bdf8" />
+            <text x="18" y="28" fill="#ffffff" font-size="13" font-weight="700">Angular Web UI &amp; Docs</text>
+            <text x="18" y="46" fill="#94a3b8" font-size="11">frontend/src/app (Port 4200)</text>
+            <rect x="18" y="58" width="105" height="20" rx="4" fill="#1e293b" />
+            <text x="70" y="72" fill="#cbd5e1" font-size="10" font-weight="600" text-anchor="middle">Airgap Playground</text>
+            <circle cx="188" cy="24" r="4.5" fill="#64748b" />
+          </g>
+
+          <!-- 4. Python SDK Node -->
+          <g id="node-client-python-sdk" class="arch-node" data-node-id="client-python-sdk" transform="translate(45, 555)">
+            <rect class="node-bg" width="205" height="95" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="95" rx="2" fill="#38bdf8" />
+            <text x="18" y="28" fill="#ffffff" font-size="13" font-weight="700">Python SDK / LangChain</text>
+            <text x="18" y="46" fill="#94a3b8" font-size="11">agpy / openai-python client</text>
+            <rect x="18" y="58" width="115" height="20" rx="4" fill="#1e293b" />
+            <text x="75" y="72" fill="#cbd5e1" font-size="10" font-weight="600" text-anchor="middle">OPENAI_BASE_URL</text>
+            <circle cx="188" cy="24" r="4.5" fill="#64748b" />
+          </g>
+
+          <!-- 5. Transparent Proxy Server Node (Gateway Core) -->
+          <g id="node-proxy-server" class="arch-node" data-node-id="proxy-server" transform="translate(325, 145)">
+            <rect class="node-bg" width="245" height="155" rx="12" fill="#0d1b2a" stroke="#10b981" stroke-width="1.75" />
+            <rect x="0" y="0" width="6" height="155" rx="3" fill="#10b981" />
+            <text x="20" y="32" fill="#ffffff" font-size="14" font-weight="700">Transparent Proxy Server</text>
+            <text x="20" y="50" fill="#6ee7b7" font-size="11">src/server.js • Port 8080</text>
+            
+            <line x1="20" y1="60" x2="225" y2="60" stroke="#1e293b" stroke-width="1" />
+            
+            <text x="20" y="80" fill="#cbd5e1" font-size="11">• Inbound Request Parsing</text>
+            <text x="20" y="98" fill="#cbd5e1" font-size="11">• Upstream TLS Socket Management</text>
+            <text x="20" y="116" fill="#cbd5e1" font-size="11">• SSE Streaming &amp; Token Dispatch</text>
+            <text x="20" y="134" fill="#cbd5e1" font-size="11">• Telemetry Stats &amp; Web Status</text>
+
+            <rect x="150" y="18" width="78" height="20" rx="4" fill="#065f46" />
+            <text x="189" y="32" fill="#a7f3d0" font-size="10" font-weight="700" text-anchor="middle">GATEWAY</text>
+          </g>
+
+          <!-- 6. CLI & Setup Wizard Controller -->
+          <g id="node-cli-controller" class="arch-node" data-node-id="cli-controller" transform="translate(325, 335)">
+            <rect class="node-bg" width="245" height="100" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="100" rx="2" fill="#10b981" />
+            <text x="18" y="28" fill="#ffffff" font-size="13" font-weight="700">CLI &amp; Setup Wizard</text>
+            <text x="18" y="46" fill="#94a3b8" font-size="11">src/cli.js &amp; src/wizard.js</text>
+            <text x="18" y="68" fill="#cbd5e1" font-size="10.5">Commands: doctor, test, config</text>
+            <rect x="18" y="74" width="145" height="18" rx="3" fill="#1e293b" />
+            <text x="90" y="87" fill="#34d399" font-size="9.5" font-weight="700" text-anchor="middle">500 PROMPTS IN &lt;15ms</text>
+          </g>
+
+          <!-- 7. Local Gemma 2 Model Node (Ollama) -->
+          <g id="node-ollama-gemma" class="arch-node" data-node-id="ollama-gemma" transform="translate(325, 580)">
+            <rect class="node-bg" width="245" height="110" rx="10" fill="#1e1035" stroke="#a855f7" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="110" rx="2" fill="#a855f7" />
+            <text x="18" y="28" fill="#ffffff" font-size="13" font-weight="700">Google Gemma 2 (2B)</text>
+            <text x="18" y="46" fill="#d8b4fe" font-size="11">Ollama Local NER (Port 11434)</text>
+            <text x="18" y="68" fill="#cbd5e1" font-size="10.5">Unstructured entity recognition:</text>
+            <text x="18" y="86" fill="#c084fc" font-size="10.5">Executive names, secret facilities</text>
+            <rect x="160" y="16" width="70" height="20" rx="4" fill="#581c87" />
+            <text x="195" y="30" fill="#e9d5ff" font-size="10" font-weight="700" text-anchor="middle">EDGE AI</text>
+          </g>
+
+          <!-- 8. Aliasing Engine Core Node -->
+          <g id="node-aliasing-engine" class="arch-node" data-node-id="aliasing-engine" transform="translate(635, 140)">
+            <rect class="node-bg" width="335" height="100" rx="10" fill="#042f2e" stroke="#14b8a6" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="100" rx="2" fill="#14b8a6" />
+            <text x="18" y="28" fill="#ffffff" font-size="14" font-weight="700">Aliasing Engine Core</text>
+            <text x="18" y="46" fill="#5eead4" font-size="11">src/aliaser.js • 17 Deterministic Rules</text>
+            <text x="18" y="68" fill="#ccfbf1" font-size="10.5">VINs, German IBANs, API Keys, DB URIs, IPs</text>
+            <rect x="18" y="74" width="145" height="18" rx="3" fill="#134e4a" />
+            <text x="90" y="87" fill="#a7f3d0" font-size="9.5" font-weight="700" text-anchor="middle">CO-REFERENCE TRACKER</text>
+            <rect x="245" y="16" width="75" height="20" rx="4" fill="#115e59" />
+            <text x="282" y="30" fill="#ccfbf1" font-size="10" font-weight="700" text-anchor="middle">ENCLAVE</text>
+          </g>
+
+          <!-- 9. Ephemeral In-Memory Vault Node -->
+          <g id="node-ephemeral-vault" class="arch-node" data-node-id="ephemeral-vault" transform="translate(635, 280)">
+            <rect class="node-bg" width="335" height="105" rx="10" fill="#0f172a" stroke="#2dd4bf" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="105" rx="2" fill="#2dd4bf" />
+            <text x="18" y="28" fill="#ffffff" font-size="14" font-weight="700">Ephemeral In-Memory Vault</text>
+            <text x="18" y="46" fill="#2dd4bf" font-size="11">JavaScript Map() in Volatile RAM</text>
+            <text x="18" y="68" fill="#cbd5e1" font-size="11">Bidirectional: rawSecret &lt;=&gt; &lt;ALIAS_*&gt;</text>
+            <text x="18" y="86" fill="#94a3b8" font-size="10.5">Zero disk persistence • Purged on shutdown</text>
+            <rect x="230" y="16" width="90" height="20" rx="4" fill="#134e4a" />
+            <text x="275" y="30" fill="#99f6e4" font-size="10" font-weight="700" text-anchor="middle">VOLATILE RAM</text>
+          </g>
+
+          <!-- 10. Egress Gate Firewall Node -->
+          <g id="node-egress-firewall" class="arch-node" data-node-id="egress-firewall" transform="translate(635, 435)">
+            <rect class="node-bg" width="335" height="100" rx="10" fill="#052e16" stroke="#10b981" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="100" rx="2" fill="#10b981" />
+            <text x="18" y="28" fill="#ffffff" font-size="14" font-weight="700">Egress Gate Firewall</text>
+            <text x="18" y="46" fill="#86efac" font-size="11">Mathematical Entropy Leakage Verifier</text>
+            <text x="18" y="68" fill="#dcfce7" font-size="11">Formula: E_leak = (Σ I(v_i ∈ P_egress) / N) * 100%</text>
+            <rect x="18" y="74" width="175" height="18" rx="3" fill="#14532d" />
+            <text x="105" y="87" fill="#4ade80" font-size="9.5" font-weight="700" text-anchor="middle">INVARIANT: E_leak ≡ 0.00%</text>
+            <rect x="245" y="16" width="75" height="20" rx="4" fill="#166534" />
+            <text x="282" y="30" fill="#dcfce7" font-size="10" font-weight="700" text-anchor="middle">FIREWALL</text>
+          </g>
+
+          <!-- 11. Sliding-Window Re-hydrator Node -->
+          <g id="node-sliding-rehydrator" class="arch-node" data-node-id="sliding-rehydrator" transform="translate(635, 580)">
+            <rect class="node-bg" width="335" height="100" rx="10" fill="#082f49" stroke="#38bdf8" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="100" rx="2" fill="#38bdf8" />
+            <text x="18" y="28" fill="#ffffff" font-size="14" font-weight="700">Sliding-Window Re-hydrator</text>
+            <text x="18" y="46" fill="#7dd3fc" font-size="11">src/server.js#L401 (State Machine)</text>
+            <text x="18" y="68" fill="#e0f2fe" font-size="10.5">Token-split buffer solves chunk boundary fragmentation</text>
+            <rect x="18" y="74" width="165" height="18" rx="3" fill="#075985" />
+            <text x="100" y="87" fill="#e0f2fe" font-size="9.5" font-weight="700" text-anchor="middle">ATOMIC RESTORATION (-r)</text>
+            <rect x="230" y="16" width="90" height="20" rx="4" fill="#0369a1" />
+            <text x="275" y="30" fill="#bae6fd" font-size="10" font-weight="700" text-anchor="middle">STREAM REHYD</text>
+          </g>
+
+          <!-- 12. NVIDIA NIM Cloud Model Node -->
+          <g id="node-cloud-nvidia-nim" class="arch-node" data-node-id="cloud-nvidia-nim" transform="translate(1070, 145)">
+            <rect class="node-bg" width="330" height="155" rx="12" fill="#1c1917" stroke="#f59e0b" stroke-width="1.75" />
+            <rect x="0" y="0" width="6" height="155" rx="3" fill="#f59e0b" />
+            <text x="20" y="32" fill="#ffffff" font-size="14" font-weight="700">NVIDIA NIM Nemotron-70B</text>
+            <text x="20" y="50" fill="#fcd34d" font-size="11">integrate.api.nvidia.com • Frontier LLM</text>
+            
+            <line x1="20" y1="60" x2="310" y2="60" stroke="#292524" stroke-width="1" />
+            
+            <text x="20" y="80" fill="#e7e5e4" font-size="11">• Model: meta/llama-3.1-nemotron-70b-instruct</text>
+            <text x="20" y="98" fill="#e7e5e4" font-size="11">• Ingests AST &amp; &lt;ALIAS_*&gt; placeholders only</text>
+            <text x="20" y="116" fill="#e7e5e4" font-size="11">• Reasoning budget: 256 tokens default</text>
+            <text x="20" y="134" fill="#10b981" font-size="11" font-weight="700">✓ Zero proprietary secret exposure</text>
+
+            <rect x="235" y="18" width="80" height="20" rx="4" fill="#78350f" />
+            <text x="275" y="32" fill="#fef3c7" font-size="10" font-weight="700" text-anchor="middle">CLOUD NIM</text>
+          </g>
+
+          <!-- 13. OpenAI API Fallback Node -->
+          <g id="node-cloud-openai" class="arch-node" data-node-id="cloud-openai" transform="translate(1070, 420)">
+            <rect class="node-bg" width="330" height="125" rx="10" fill="#1c1917" stroke="#78350f" stroke-width="1.5" />
+            <rect x="0" y="0" width="5" height="125" rx="2" fill="#f59e0b" />
+            <text x="20" y="30" fill="#ffffff" font-size="14" font-weight="700">OpenAI Cloud API (Fallback)</text>
+            <text x="20" y="48" fill="#d6d3d1" font-size="11">api.openai.com/v1 • gpt-4o / gpt-4o-mini</text>
+            <line x1="20" y1="58" x2="310" y2="58" stroke="#292524" stroke-width="1" />
+            <text x="20" y="80" fill="#cbd5e1" font-size="11">• Default upstream when NVIDIA key absent</text>
+            <text x="20" y="98" fill="#cbd5e1" font-size="11">• Zero prompt training retention on enterprise</text>
+            <rect x="235" y="18" width="80" height="20" rx="4" fill="#44403c" />
+            <text x="275" y="32" fill="#e7e5e4" font-size="10" font-weight="700" text-anchor="middle">UPSTREAM</text>
+          </g>
+
+        </g>
+      </svg>
+    </div>
+
+    <!-- Right Side: Deep Inspector & Trace Player Panel -->
+    <aside id="inspectorSidebar" class="w-full lg:w-[460px] bg-[#0c121e] border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col h-auto lg:h-full z-20 transition-all duration-300">
+      
+      <!-- Panel Header Tabs -->
+      <div class="flex items-center border-b border-slate-800 bg-[#090e18] px-4">
+        <button id="tabBtnTrace" class="px-4 py-3 text-xs font-semibold border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Active Trace Step
+        </button>
+        <button id="tabBtnInspector" class="px-4 py-3 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Component Inspector
+        </button>
+        <button id="tabBtnLadder" class="px-4 py-3 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          Compliance
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-4" id="panelContent">
+
+        <!-- 1. Trace Step View (Default) -->
+        <div id="viewTraceStep" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span id="stepBadge" class="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              STEP 1: INGRESS
+            </span>
+            <span id="stepPrivacyLevel" class="text-xs font-medium text-cyan-400">
+              Level 0: Sovereign Local Client
+            </span>
+          </div>
+
+          <h3 id="stepTitle" class="text-base font-bold text-white tracking-tight">
+            Ingress Request from Cursor Agent
+          </h3>
+
+          <p id="stepDescription" class="text-xs text-slate-300 leading-relaxed">
+            Cursor agent sends a prompt containing proprietary automotive telematics: VIN WDB2040011A123456 and DB URI postgresql://admin:secret123@fleet.internal:5432/db.
+          </p>
+
+          <!-- Step Metric Cards -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-2.5">
+              <span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Cloud Leakage Risk</span>
+              <div id="stepLeakageMetric" class="text-sm font-bold text-emerald-400 font-mono mt-0.5">
+                0.00% [BOUNDED]
+              </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-2.5">
+              <span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Source → Target</span>
+              <div id="stepConnectionMetric" class="text-xs font-semibold text-cyan-300 truncate mt-0.5 font-mono">
+                client-cursor → proxy-server
+              </div>
+            </div>
+          </div>
+
+          <!-- Payload Transformation Inspector -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                Wire Payload State
+              </span>
+              <span class="text-[11px] font-mono text-slate-500">Live JSON Payload</span>
+            </div>
+
+            <div id="payloadViewer" class="bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-xs text-slate-300 overflow-x-auto max-h-56 leading-relaxed">
+              <!-- Dynamically populated payload JSON -->
+            </div>
+          </div>
+
+          <!-- Technical Notes / Invariant Box -->
+          <div class="rounded-lg bg-emerald-950/30 border border-emerald-500/20 p-3 space-y-1.5">
+            <div class="flex items-center gap-2 text-emerald-400 text-xs font-semibold">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              Mathematical Guarantee &amp; Invariant
+            </div>
+            <p id="stepInvariantText" class="text-[11px] text-slate-300 leading-normal">
+              Pre-flight egress check enforces E_leak == 0.00%. If any substring in Ephemeral Vault appears in the outbound wire payload, the connection is instantly aborted with zero transmitted bytes.
+            </p>
+          </div>
+        </div>
+
+        <!-- 2. Component Inspector View -->
+        <div id="viewInspector" class="space-y-4 hidden">
+          <div class="flex items-center justify-between">
+            <span id="inspTypeBadge" class="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+              SERVICE
+            </span>
+            <span id="inspZone" class="text-xs text-slate-400 font-medium">Local Gateway Zone</span>
+          </div>
+
+          <h3 id="inspTitle" class="text-lg font-bold text-white tracking-tight">
+            Transparent Proxy Server
+          </h3>
+          <p id="inspSublabel" class="text-xs text-emerald-400 font-mono">src/server.js</p>
+
+          <p id="inspDescription" class="text-xs text-slate-300 leading-relaxed">
+            High-throughput local HTTP gateway. Manages request lifecycle, routes payloads to the Aliasing Engine, performs cryptographic authentication injection, dispatches outbound TLS requests, and executes sliding-window re-hydration on SSE streams.
+          </p>
+
+          <div class="space-y-3">
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+              <span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Ports &amp; Endpoints</span>
+              <ul id="inspEndpoints" class="mt-1 text-xs text-slate-300 space-y-1 font-mono">
+                <li>POST /v1/chat/completions</li>
+                <li>GET /v1/models</li>
+                <li>GET /status (HTML &amp; JSON)</li>
+              </ul>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+              <span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Core Technologies</span>
+              <div id="inspTech" class="flex flex-wrap gap-1.5 mt-1.5">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-[11px] text-slate-300">Node.js HTTP/S</span>
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-[11px] text-slate-300">SSE Pipeline</span>
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-[11px] text-slate-300">Stream Transformer</span>
+              </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+              <span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Architecture Details</span>
+              <div id="inspDetails" class="text-xs text-slate-300 space-y-1 mt-1">
+                <div><strong>Role:</strong> Reverse Proxy Gateway</div>
+                <div><strong>Concurrency:</strong> Non-blocking event loop</div>
+                <div><strong>Upstream:</strong> NVIDIA NIM or OpenAI API</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Compliance & Privacy Ladder View -->
+        <div id="viewLadder" class="space-y-4 hidden">
+          <div class="flex items-center gap-2 text-white font-bold text-sm">
+            <span class="text-emerald-400 text-lg">🪜</span>
+            The 5-Level Privacy Reduction Ladder
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Alias AI bounds entropy leakage to <strong>0.00%</strong> as data moves from operator RAM toward cloud inference endpoints.
+          </p>
+
+          <div class="space-y-2.5">
+            <!-- Level 0 -->
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-cyan-500/30">
+              <div class="flex items-center justify-between text-xs font-semibold text-cyan-400">
+                <span>Level 0: Local Disk / RAM</span>
+                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300">0% (Local)</span>
+              </div>
+              <p class="text-[11px] text-slate-300 mt-1">Operator workstation only. Raw code and credentials never leave volatile process memory.</p>
+            </div>
+
+            <!-- Level 1 -->
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-emerald-500/30">
+              <div class="flex items-center justify-between text-xs font-semibold text-emerald-400">
+                <span>Level 1: Local Sanitizer Enclave</span>
+                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300">0.00%</span>
+              </div>
+              <p class="text-[11px] text-slate-300 mt-1">Gemma 2 + deterministic regex substitutes secrets with typed immutable tokens into RAM vault.</p>
+            </div>
+
+            <!-- Level 2 -->
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-teal-500/30">
+              <div class="flex items-center justify-between text-xs font-semibold text-teal-400">
+                <span>Level 2: Egress Gate Firewall</span>
+                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-teal-950 text-teal-300">0.00% [Verified]</span>
+              </div>
+              <p class="text-[11px] text-slate-300 mt-1">Egress firewall proves E_leak == 0.00% before opening TLS socket to external clouds.</p>
+            </div>
+
+            <!-- Level 3 -->
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-amber-500/30">
+              <div class="flex items-center justify-between text-xs font-semibold text-amber-400">
+                <span>Level 3: Cloud Frontier LLM</span>
+                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300">0.00% Risk</span>
+              </div>
+              <p class="text-[11px] text-slate-300 mt-1">NVIDIA Nemotron-70B computes solutions on pure semantic structure and &lt;ALIAS_*&gt; tokens.</p>
+            </div>
+
+            <!-- Level 4 -->
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-purple-500/30">
+              <div class="flex items-center justify-between text-xs font-semibold text-purple-400">
+                <span>Level 4: Inbound Stream / Client</span>
+                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300">0.00% Leakage</span>
+              </div>
+              <p class="text-[11px] text-slate-300 mt-1">Default: Zero-latency pass-through with placeholders. Optional (-r): Local sliding-window re-hydration.</p>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-800 pt-3 space-y-2">
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider">Statutory Compliance</h4>
+            <div class="text-[11px] text-slate-300 space-y-1">
+              <div>• <strong>GDPR Article 25:</strong> Privacy by Design &amp; Default (Automated data pseudonymisation).</div>
+              <div>• <strong>EU AI Act Article 14:</strong> Human Oversight &amp; Enclave Governance via /vault command.</div>
+              <div>• <strong>ISO 3779 / TISAX:</strong> Proprietary 17-character automotive VIN airgapping.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Telemetry Strip -->
+      <div class="p-3.5 border-t border-slate-800 bg-[#090d16] text-[11px] text-slate-400 flex items-center justify-between">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          Airgap Gateway Online
+        </span>
+        <span class="font-mono text-slate-500">SHA-256 Attested</span>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Interactive Live Airgap Tester Modal -->
+  <div id="modalAirgap" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-[#0f172a] border border-slate-700 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </span>
+          <div>
+            <h3 class="font-bold text-white text-base">Live Airgap Sanitization Simulator</h3>
+            <p class="text-xs text-slate-400">Test how the Alias AI regex &amp; vault engine strips real secrets in client RAM</p>
+          </div>
+        </div>
+        <button id="btnCloseModal" class="text-slate-400 hover:text-white p-1 rounded-lg">✕</button>
+      </div>
+
+      <!-- Quick sample prompts -->
+      <div class="space-y-1.5">
+        <span class="text-xs font-semibold text-slate-400">Load Enterprise Sample:</span>
+        <div class="flex flex-wrap gap-2">
+          <button class="btn-sample px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono" data-sample="auto">
+            🚗 Mercedes VIN &amp; IBAN
+          </button>
+          <button class="btn-sample px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono" data-sample="creds">
+            🔑 OpenAI Key &amp; Postgres URI
+          </button>
+          <button class="btn-sample px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono" data-sample="pii">
+            👤 German Person Name &amp; Phone
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Inbound Unsanitized Prompt (Level 0):</label>
+        <textarea id="txtTestInput" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500"></textarea>
+      </div>
+
+      <div class="flex justify-end">
+        <button id="btnRunSanitize" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition">
+          Run Airgap Sanitization (0ms)
+        </button>
+      </div>
+
+      <!-- Result outputs -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-3">
+          <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Outbound Wire Payload (Level 2)</span>
+          <pre id="txtSanitizedOutput" class="text-xs text-slate-300 font-mono mt-1 whitespace-pre-wrap max-h-36 overflow-y-auto">(Click Run Airgap Sanitization)</pre>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-3">
+          <span class="text-[10px] uppercase font-bold text-cyan-400 tracking-wider">Ephemeral Vault In RAM (Level 1)</span>
+          <pre id="txtVaultOutput" class="text-xs text-slate-300 font-mono mt-1 whitespace-pre-wrap max-h-36 overflow-y-auto">{}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON Spec Viewer Modal -->
+  <div id="modalSpec" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-[#0f172a] border border-slate-700 rounded-xl max-w-3xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-white text-base">architecture.json Specification</h3>
+        <button id="btnCloseSpecModal" class="text-slate-400 hover:text-white p-1">✕</button>
+      </div>
+      <div class="relative">
+        <pre id="specJsonCode" class="bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-300 max-h-96 overflow-y-auto"></pre>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button id="btnCopySpec" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200">Copy to Clipboard</button>
+        <button id="btnCloseSpecModal2" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs text-slate-950 font-bold">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // Load Architecture Specification Data
+    let archSpec = null;
+    let currentScenarioId = 'trace-standard-airgap';
+    let currentStepIndex = 0;
+    let isPlaying = false;
+    let playInterval = null;
+    let playbackSpeed = 1.0;
+    let currentZoom = 1.0;
+
+    // Component details map (populated from spec)
+    const componentsMap = new Map();
+    const connectionsMap = new Map();
+
+    // Fetch JSON spec or fallback to embedded spec
+    async function loadSpec() {
+      try {
+        const resp = await fetch('architecture.json');
+        if (resp.ok) {
+          archSpec = await resp.json();
+        } else {
+          throw new Error('Local fetch failed');
+        }
+      } catch (err) {
+        // Fallback embedded architecture spec
+        archSpec = {
+          meta: { project: "Alias AI", version: "0.1.0" },
+          traces: [
+            {
+              id: "trace-standard-airgap",
+              name: "Standard Airgap Flow (Pass-Through Placeholders)",
+              badge: "DEFAULT (0 TOKEN LAG)",
+              description: "Standard zero-knowledge workflow used by Cursor IDE and coding agents. Raw secrets are replaced with <ALIAS_*> tokens; responses retain placeholders natively.",
+              steps: [
+                {
+                  step: 1,
+                  title: "Ingress Request from Cursor Agent",
+                  source: "client-cursor",
+                  target: "proxy-server",
+                  connectionId: "conn-cursor-gateway",
+                  privacyLevel: "Level 0: Sovereign Local Client",
+                  entropyLeakage: "N/A (Local Ingress)",
+                  description: "Cursor agent sends a prompt containing proprietary automotive telematics: VIN WDB2040011A123456 and DB URI postgresql://admin:secret123@fleet.internal:5432/db.",
+                  payloadSample: {
+                    prompt: "Inspect battery sensor telemetry for Mercedes VIN WDB2040011A123456 on postgresql://admin:secret123@fleet.internal:5432/db",
+                    detectedSecrets: ["WDB2040011A123456 (VIN)", "postgresql://admin:secret123@... (DB_URI)"]
+                  }
+                },
+                {
+                  step: 2,
+                  title: "Deterministic Regex Extraction & Vault Storage",
+                  source: "proxy-server",
+                  target: "aliasing-engine",
+                  connectionId: "conn-gateway-aliaser",
+                  privacyLevel: "Level 1: Local Sanitizer Enclave",
+                  entropyLeakage: "0.00% (Enclave Isolation)",
+                  description: "Aliasing Engine parses text using 17 regex rules. Real secrets are extracted into the Ephemeral Vault in process RAM.",
+                  payloadSample: {
+                    vaultUpdates: [
+                      { secret: "WDB2040011A123456", alias: "<ALIAS_VIN_1>" },
+                      { secret: "postgresql://admin:secret123@...", alias: "<ALIAS_DB_URI_1>" }
+                    ],
+                    sanitizedPrompt: "Inspect battery sensor telemetry for Mercedes VIN <ALIAS_VIN_1> on <ALIAS_DB_URI_1>"
+                  }
+                },
+                {
+                  step: 3,
+                  title: "Egress Firewall Verification (0.00% Invariant)",
+                  source: "aliasing-engine",
+                  target: "egress-firewall",
+                  connectionId: "conn-aliaser-firewall",
+                  privacyLevel: "Level 2: Egress Gate Firewall",
+                  entropyLeakage: "0.00% [MATHEMATICALLY VERIFIED]",
+                  description: "Egress Firewall iterates all Vault keys and verifies zero substring matches exist in outbound payload. Formula E_leak == 0.00% holds true.",
+                  payloadSample: {
+                    vaultSize: 2,
+                    formula: "E_leak = (Sum(I(v_i in P_egress)) / N) * 100% = 0.00%",
+                    verdict: "PERMIT EGRESS"
+                  }
+                },
+                {
+                  step: 4,
+                  title: "Outbound TLS to NVIDIA NIM Nemotron-70B",
+                  source: "proxy-server",
+                  target: "cloud-nvidia-nim",
+                  connectionId: "conn-gateway-nvidia",
+                  privacyLevel: "Level 3: Public Cloud Reasoning",
+                  entropyLeakage: "0.00% [Zero Exposure]",
+                  description: "Sanitized wire payload is transmitted to NVIDIA NIM over TLS 1.3 with injected authorization header.",
+                  payloadSample: {
+                    outboundWirePayload: "{\"model\": \"meta/llama-3.1-nemotron-70b-instruct\", \"messages\": [{\"role\": \"user\", \"content\": \"Inspect battery sensor telemetry for Mercedes VIN <ALIAS_VIN_1> on <ALIAS_DB_URI_1>\"}]}"
+                  }
+                },
+                {
+                  step: 5,
+                  title: "Cloud Reasoning & Streaming Response",
+                  source: "cloud-nvidia-nim",
+                  target: "proxy-server",
+                  connectionId: "conn-nvidia-gateway-sse",
+                  privacyLevel: "Level 3: Cloud Inference",
+                  entropyLeakage: "0.00%",
+                  description: "NVIDIA Nemotron-70B reasons on anonymized system structure, returning recommendations referencing <ALIAS_VIN_1> and <ALIAS_DB_URI_1>.",
+                  payloadSample: {
+                    sseChunk: "data: {\"choices\": [{\"delta\": {\"content\": \"For vehicle <ALIAS_VIN_1>, battery voltage is within normal threshold. Querying database <ALIAS_DB_URI_1> for historical trends...\"}}]}"
+                  }
+                },
+                {
+                  step: 6,
+                  title: "Pass-Through SSE Stream to Agent",
+                  source: "proxy-server",
+                  target: "client-cursor",
+                  connectionId: "conn-gateway-client-stream",
+                  privacyLevel: "Level 4: Pass-Through Client",
+                  entropyLeakage: "0.00%",
+                  description: "Proxy pipes SSE stream straight to Cursor IDE with 0ms added latency. Agent treats <ALIAS_*> as immutable semantic variables.",
+                  payloadSample: {
+                    clientOutput: "For vehicle <ALIAS_VIN_1>, battery voltage is within normal threshold. Querying database <ALIAS_DB_URI_1> for historical trends..."
+                  }
+                }
+              ]
+            },
+            {
+              id: "trace-sliding-rehydration",
+              name: "Sliding-Window Re-hydration Flow (alias-ai start -r)",
+              badge: "RE-HYDRATION MODE (-r)",
+              description: "Solves token-split boundary fragmentation when streaming SSE tokens from cloud LLMs, restoring real secrets inside local workstation memory.",
+              steps: [
+                {
+                  step: 1,
+                  title: "Client Ingress with Warranty Payout Details",
+                  source: "client-chat-repl",
+                  target: "proxy-server",
+                  connectionId: "conn-repl-gateway",
+                  privacyLevel: "Level 0: Operator RAM",
+                  entropyLeakage: "0.00%",
+                  description: "User submits a prompt with a German IBAN: DE89370400440532013000 to initiate warranty reimbursement.",
+                  payloadSample: {
+                    prompt: "Disburse warranty payment of €1,450 to German IBAN DE89370400440532013000.",
+                    secret: "DE89370400440532013000 (GERMAN_IBAN)"
+                  }
+                },
+                {
+                  step: 2,
+                  title: "Vault Ingestion & Placeholder Mapping",
+                  source: "aliasing-engine",
+                  target: "ephemeral-vault",
+                  connectionId: "conn-aliaser-vault",
+                  privacyLevel: "Level 1: Local Sanitizer Enclave",
+                  entropyLeakage: "0.00%",
+                  description: "IBAN is mapped to <ALIAS_IBAN_1> in both forward vault and reverseVault.",
+                  payloadSample: {
+                    forwardVault: { "DE89370400440532013000": "<ALIAS_IBAN_1>" },
+                    reverseVault: { "<ALIAS_IBAN_1>": "DE89370400440532013000" }
+                  }
+                },
+                {
+                  step: 3,
+                  title: "Cloud Inference Streams Fragmented Tokens",
+                  source: "cloud-nvidia-nim",
+                  target: "proxy-server",
+                  connectionId: "conn-nvidia-gateway-sse",
+                  privacyLevel: "Level 3: Cloud Inference",
+                  entropyLeakage: "0.00%",
+                  description: "NVIDIA NIM streams tokens. Tokenizer splits alias into: Chunk 1 ('Transfer authorized to <ALIAS_I'), Chunk 2 ('BAN_'), Chunk 3 ('1>.').",
+                  payloadSample: {
+                    chunk1: "\"Transfer authorized to <ALIAS_I\"",
+                    chunk2: "\"BAN_\"",
+                    chunk3: "\"1>.\""
+                  }
+                },
+                {
+                  step: 4,
+                  title: "Sliding-Window Stateful Reassembly & Reverse Lookup",
+                  source: "proxy-server",
+                  target: "sliding-rehydrator",
+                  connectionId: "conn-gateway-rehydrator",
+                  privacyLevel: "Level 4: Local Re-hydration",
+                  entropyLeakage: "0.00%",
+                  description: "Sliding-window buffer buffers partial tag prefix. On closure tag '>', triggers atomic reverse lookup from Ephemeral Vault.",
+                  payloadSample: {
+                    bufferState: "Buffered '<ALIAS_IBAN_1>' -> Matched in reverseVault",
+                    atomicRestoration: "Replaced '<ALIAS_IBAN_1>' with 'DE89370400440532013000'"
+                  }
+                },
+                {
+                  step: 5,
+                  title: "Restored Plaintext Delivered to Client",
+                  source: "sliding-rehydrator",
+                  target: "client-chat-repl",
+                  connectionId: "conn-gateway-client-stream",
+                  privacyLevel: "Level 0: Sovereign Local Client",
+                  entropyLeakage: "0.00%",
+                  description: "Terminal chat receives fully reconstructed text containing real IBAN without the cloud ever having seen it.",
+                  payloadSample: {
+                    finalDelivered: "Transfer authorized to DE89370400440532013000."
+                  }
+                }
+              ]
+            },
+            {
+              id: "trace-hybrid-gemma",
+              name: "Hybrid Sanitization with Local Gemma 2 NER (--gemma)",
+              badge: "EDGE NEURAL NER",
+              description: "Uses on-device Google Gemma 2 (2B) on Ollama to identify unstructured named entities (executive names, project codenames, secret facilities).",
+              steps: [
+                {
+                  step: 1,
+                  title: "Unstructured Prompt Ingestion",
+                  source: "client-cursor",
+                  target: "proxy-server",
+                  connectionId: "conn-cursor-gateway",
+                  privacyLevel: "Level 0: Sovereign Client",
+                  entropyLeakage: "0.00%",
+                  description: "User prompt contains unstructured personal names and project codenames: 'Lead engineer Dr. Florian Mueller requested review of Project Starlight at Stuttgart Proving Grounds.'",
+                  payloadSample: {
+                    unstructuredEntities: ["Dr. Florian Mueller", "Project Starlight", "Stuttgart Proving Grounds"]
+                  }
+                },
+                {
+                  step: 2,
+                  title: "Local Query to Google Gemma 2 on Ollama",
+                  source: "aliasing-engine",
+                  target: "ollama-gemma",
+                  connectionId: "conn-aliaser-gemma",
+                  privacyLevel: "Level 1: Sovereign Edge AI",
+                  entropyLeakage: "0.00% (On-Device Inference)",
+                  description: "Aliasing Engine sends structured JSON extraction prompt to 127.0.0.1:11434 with model gemma2:2b.",
+                  payloadSample: {
+                    ollamaPrompt: "Extract confidential person names, internal facilities, or secret project codenames from this text: ...",
+                    gemmaResponse: "{\"entities\": [\"Dr. Florian Mueller\", \"Project Starlight\", \"Stuttgart Proving Grounds\"]}"
+                  }
+                },
+                {
+                  step: 3,
+                  title: "Neural Vault Mapping & Outbound Dispatch",
+                  source: "aliasing-engine",
+                  target: "cloud-nvidia-nim",
+                  connectionId: "conn-gateway-nvidia",
+                  privacyLevel: "Level 3: Public Cloud Reasoning",
+                  entropyLeakage: "0.00%",
+                  description: "Entities mapped to <ALIAS_ENTITY_1>, <ALIAS_ENTITY_2>, <ALIAS_ENTITY_3>. Pure semantic structure forwarded to NVIDIA NIM.",
+                  payloadSample: {
+                    sanitizedWire: "Lead engineer <ALIAS_ENTITY_1> requested review of <ALIAS_ENTITY_2> at <ALIAS_ENTITY_3>."
+                  }
+                }
+              ]
+            },
+            {
+              id: "trace-diagnostics-audit",
+              name: "System Health & Doctor Audit (alias-ai doctor)",
+              badge: "DIAGNOSTICS & AUDIT",
+              description: "Performs preflight checks on Node.js >= 18, port availability, Ollama/Gemma 2 service, regex throughput benchmarks, and audit attestation.",
+              steps: [
+                {
+                  step: 1,
+                  title: "CLI Controller Triggers Doctor Command",
+                  source: "cli-controller",
+                  target: "proxy-server",
+                  connectionId: "conn-repl-gateway",
+                  privacyLevel: "Level 0: Local Machine",
+                  entropyLeakage: "0.00%",
+                  description: "Operator runs 'alias-ai doctor' or hits GET /status to inspect gateway telemetry.",
+                  payloadSample: {
+                    command: "alias-ai doctor",
+                    checks: ["Node.js >= 18.0.0", "Port 8080 free", "Ollama running", "Gemma 2 installed"]
+                  }
+                },
+                {
+                  step: 2,
+                  title: "Throughput Benchmark Execution",
+                  source: "cli-controller",
+                  target: "aliasing-engine",
+                  connectionId: "conn-gateway-aliaser",
+                  privacyLevel: "Level 1: Sovereign Enclave",
+                  entropyLeakage: "0.00%",
+                  description: "Benchmarks 500 enterprise prompts with multi-category secrets. Confirms sub-millisecond execution (<0.03ms per prompt).",
+                  payloadSample: {
+                    promptsProcessed: 500,
+                    elapsedTime: "14.2ms",
+                    speed: "35,211 prompts/sec"
+                  }
+                },
+                {
+                  step: 3,
+                  title: "Cryptographic Audit Attestation Emission",
+                  source: "proxy-server",
+                  target: "client-frontend-spa",
+                  connectionId: "conn-spa-gateway",
+                  privacyLevel: "Level 0: Local Audit Record",
+                  entropyLeakage: "0.00% [Attested]",
+                  description: "Emits JSON status containing SHA-256 integrity hash confirming GDPR Article 25 and EU AI Act Article 14 compliance.",
+                  payloadSample: {
+                    status: "AIRGAP_ONLINE",
+                    cloud_entropy_leakage: "0.00% [VERIFIED]",
+                    auditHash: "SHA256(SessionID || Timestamp || Article25 || Article14 || E_leak)"
+                  }
+                }
+              ]
+            }
+          ]
+        };
+      }
+
+      // Populate component lookup maps
+      if (archSpec.components) {
+        archSpec.components.forEach(c => componentsMap.set(c.id, c));
+      }
+      if (archSpec.connections) {
+        archSpec.connections.forEach(conn => connectionsMap.set(conn.id, conn));
+      }
+
+      // Render spec JSON in modal
+      document.getElementById('specJsonCode').textContent = JSON.stringify(archSpec, null, 2);
+
+      // Initialize UI
+      initScenarioSelector();
+      updateTraceStepView();
+    }
+
+    // Initialize Scenario Selector
+    function initScenarioSelector() {
+      const select = document.getElementById('scenarioSelect');
+      select.value = currentScenarioId;
+
+      select.addEventListener('change', (e) => {
+        currentScenarioId = e.target.value;
+        currentStepIndex = 0;
+        pausePlayback();
+        updateTraceStepView();
+      });
+    }
+
+    // Get current scenario and step
+    function getCurrentScenario() {
+      return archSpec.traces.find(t => t.id === currentScenarioId) || archSpec.traces[0];
+    }
+
+    function getCurrentStep() {
+      const scenario = getCurrentScenario();
+      return scenario.steps[currentStepIndex] || scenario.steps[0];
+    }
+
+    // Update the Trace View and visual diagram highlights
+    function updateTraceStepView() {
+      const scenario = getCurrentScenario();
+      const totalSteps = scenario.steps.length;
+      const step = getCurrentStep();
+
+      // Update Toolbar counters
+      document.getElementById('currentStepNum').textContent = step.step;
+      document.getElementById('totalStepsNum').textContent = totalSteps;
+
+      document.getElementById('btnPrevStep').disabled = (currentStepIndex === 0);
+      document.getElementById('btnNextStep').disabled = (currentStepIndex === totalSteps - 1);
+
+      // Update Panel Details
+      document.getElementById('stepBadge').textContent = `STEP ${step.step}: ${step.title.split(' ')[0].toUpperCase()}`;
+      document.getElementById('stepPrivacyLevel').textContent = step.privacyLevel || 'Level 1';
+      document.getElementById('stepTitle').textContent = step.title;
+      document.getElementById('stepDescription').textContent = step.description;
+      document.getElementById('stepLeakageMetric').textContent = step.entropyLeakage || '0.00% [VERIFIED]';
+      document.getElementById('stepConnectionMetric').textContent = `${step.source} → ${step.target}`;
+
+      // Update payload viewer
+      const payloadViewer = document.getElementById('payloadViewer');
+      payloadViewer.textContent = JSON.stringify(step.payloadSample || {}, null, 2);
+
+      // Highlight in SVG diagram (vector sharp, no blurry filters)
+      highlightTraceInDiagram(step);
+    }
+
+    // Highlight active nodes, active edge, and animate the pulse packet
+    function highlightTraceInDiagram(step) {
+      // 1. Reset all nodes & edges
+      document.querySelectorAll('.arch-node').forEach(el => {
+        el.classList.remove('active-step-source', 'active-step-target', 'node-dimmed');
+      });
+      document.querySelectorAll('.arch-edge').forEach(el => {
+        el.classList.remove('edge-active', 'edge-active-rehydrate', 'edge-dimmed');
+      });
+
+      // 2. Soft-dim inactive nodes and edges (clean 65% opacity, text stays sharp)
+      document.querySelectorAll('.arch-node').forEach(el => {
+        const nodeId = el.getAttribute('data-node-id');
+        if (nodeId !== step.source && nodeId !== step.target) {
+          el.classList.add('node-dimmed');
+        }
+      });
+      document.querySelectorAll('.arch-edge').forEach(el => {
+        const edgeId = el.getAttribute('id');
+        if (edgeId !== step.connectionId) {
+          el.classList.add('edge-dimmed');
+        }
+      });
+
+      // 3. Highlight source and target nodes (via .node-bg rect, text never stroked)
+      const sourceNode = document.getElementById(`node-${step.source}`);
+      const targetNode = document.getElementById(`node-${step.target}`);
+      if (sourceNode) sourceNode.classList.add('active-step-source');
+      if (targetNode) targetNode.classList.add('active-step-target');
+
+      // 4. Highlight active edge and animate pulse packet along path
+      const edge = document.getElementById(step.connectionId);
+      const pulseLine = document.getElementById('activePulseLine');
+      const particleDot = document.getElementById('activeParticleDot');
+      const packetAnim = document.getElementById('packetAnim');
+
+      if (edge) {
+        const isRehydrate = step.connectionId.includes('rehydrat');
+        edge.classList.add(isRehydrate ? 'edge-active-rehydrate' : 'edge-active');
+
+        // Copy path d to pulseLine & packetAnim
+        const pathD = edge.getAttribute('d');
+        if (pathD) {
+          pulseLine.setAttribute('d', pathD);
+          pulseLine.classList.remove('hidden');
+
+          packetAnim.setAttribute('path', pathD);
+          packetAnim.setAttribute('dur', `${(1.2 / playbackSpeed).toFixed(2)}s`);
+          particleDot.classList.remove('hidden');
+
+          // Trigger SVG animation restart
+          try {
+            particleDot.setCurrentTime && particleDot.setCurrentTime(0);
+          } catch(e) {}
+        }
+      } else {
+        pulseLine.classList.add('hidden');
+        particleDot.classList.add('hidden');
+      }
+    }
+
+    // Playback Controller
+    function startPlayback() {
+      isPlaying = true;
+      document.getElementById('playText').textContent = 'Pause';
+      document.getElementById('playIcon').innerHTML = '<path d="M5 4h3v12H5V4zm7 0h3v12h-3V4z"/>';
+
+      const intervalTime = 2200 / playbackSpeed;
+      playInterval = setInterval(() => {
+        const scenario = getCurrentScenario();
+        if (currentStepIndex < scenario.steps.length - 1) {
+          currentStepIndex++;
+          updateTraceStepView();
+        } else {
+          // Loop
+          currentStepIndex = 0;
+          updateTraceStepView();
+        }
+      }, intervalTime);
+    }
+
+    function pausePlayback() {
+      isPlaying = false;
+      document.getElementById('playText').textContent = 'Play Trace';
+      document.getElementById('playIcon').innerHTML = '<path d="M4 4l12 6-12 6z"/>';
+      if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+      }
+    }
+
+    // Play / Pause Button Listener
+    document.getElementById('btnPlayPause').addEventListener('click', () => {
+      if (isPlaying) {
+        pausePlayback();
+      } else {
+        startPlayback();
+      }
+    });
+
+    document.getElementById('btnPrevStep').addEventListener('click', () => {
+      pausePlayback();
+      if (currentStepIndex > 0) {
+        currentStepIndex--;
+        updateTraceStepView();
+      }
+    });
+
+    document.getElementById('btnNextStep').addEventListener('click', () => {
+      pausePlayback();
+      const scenario = getCurrentScenario();
+      if (currentStepIndex < scenario.steps.length - 1) {
+        currentStepIndex++;
+        updateTraceStepView();
+      }
+    });
+
+    document.getElementById('btnResetTrace').addEventListener('click', () => {
+      pausePlayback();
+      currentStepIndex = 0;
+      updateTraceStepView();
+    });
+
+    // Speed buttons
+    document.querySelectorAll('.btn-speed').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.btn-speed').forEach(b => {
+          b.className = 'btn-speed px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 hover:bg-slate-700';
+        });
+        e.target.className = 'btn-speed px-2 py-0.5 rounded text-xs bg-emerald-600/30 text-emerald-400 border border-emerald-500/40';
+        playbackSpeed = parseFloat(e.target.getAttribute('data-speed'));
+        if (isPlaying) {
+          pausePlayback();
+          startPlayback();
+        }
+      });
+    });
+
+    // Node Click Handlers -> Show Component Inspector
+    document.querySelectorAll('.arch-node').forEach(node => {
+      node.addEventListener('click', () => {
+        const nodeId = node.getAttribute('data-node-id');
+        openComponentInspector(nodeId);
+      });
+    });
+
+    function openComponentInspector(nodeId) {
+      // Switch tab to inspector
+      switchTab('inspector');
+
+      const comp = componentsMap.get(nodeId);
+      if (comp) {
+        document.getElementById('inspTitle').textContent = comp.label;
+        document.getElementById('inspSublabel').textContent = comp.filePath || comp.sublabel;
+        document.getElementById('inspTypeBadge').textContent = (comp.type || 'COMPONENT').toUpperCase();
+        document.getElementById('inspZone').textContent = comp.zoneId || 'Workstation';
+        document.getElementById('inspDescription').textContent = comp.description;
+
+        // Endpoints
+        const endpointsList = document.getElementById('inspEndpoints');
+        endpointsList.innerHTML = '';
+        (comp.endpoints || comp.ports || []).forEach(ep => {
+          const li = document.createElement('li');
+          li.textContent = ep;
+          endpointsList.appendChild(li);
+        });
+
+        // Technologies
+        const techBox = document.getElementById('inspTech');
+        techBox.innerHTML = '';
+        (comp.technologies || []).forEach(t => {
+          const span = document.createElement('span');
+          span.className = 'px-2 py-0.5 rounded bg-slate-800 text-[11px] text-slate-300';
+          span.textContent = t;
+          techBox.appendChild(span);
+        });
+
+        // Details
+        const detailsBox = document.getElementById('inspDetails');
+        detailsBox.innerHTML = '';
+        if (comp.details) {
+          for (const [k, v] of Object.entries(comp.details)) {
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>${k}:</strong> ${v}`;
+            detailsBox.appendChild(div);
+          }
+        }
+      }
+    }
+
+    // Tab Switching Logic
+    function switchTab(tabName) {
+      const tabTrace = document.getElementById('tabBtnTrace');
+      const tabInspector = document.getElementById('tabBtnInspector');
+      const tabLadder = document.getElementById('tabBtnLadder');
+
+      const viewTrace = document.getElementById('viewTraceStep');
+      const viewInspector = document.getElementById('viewInspector');
+      const viewLadder = document.getElementById('viewLadder');
+
+      // Reset
+      [tabTrace, tabInspector, tabLadder].forEach(t => {
+        t.className = 'px-4 py-3 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5';
+      });
+      [viewTrace, viewInspector, viewLadder].forEach(v => v.classList.add('hidden'));
+
+      if (tabName === 'trace') {
+        tabTrace.className = 'px-4 py-3 text-xs font-semibold border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-1.5';
+        viewTrace.classList.remove('hidden');
+      } else if (tabName === 'inspector') {
+        tabInspector.className = 'px-4 py-3 text-xs font-semibold border-b-2 border-cyan-400 text-cyan-400 flex items-center gap-1.5';
+        viewInspector.classList.remove('hidden');
+      } else if (tabName === 'ladder') {
+        tabLadder.className = 'px-4 py-3 text-xs font-semibold border-b-2 border-purple-400 text-purple-400 flex items-center gap-1.5';
+        viewLadder.classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('tabBtnTrace').addEventListener('click', () => switchTab('trace'));
+    document.getElementById('tabBtnInspector').addEventListener('click', () => switchTab('inspector'));
+    document.getElementById('tabBtnLadder').addEventListener('click', () => switchTab('ladder'));
+    document.getElementById('btnPrivacyLadder').addEventListener('click', () => switchTab('ladder'));
+
+    // Search bar filter
+    document.getElementById('nodeSearch').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      if (!q) {
+        document.querySelectorAll('.arch-node').forEach(el => el.classList.remove('node-dimmed'));
+        return;
+      }
+      document.querySelectorAll('.arch-node').forEach(el => {
+        const text = el.textContent.toLowerCase();
+        if (text.includes(q)) {
+          el.classList.remove('node-dimmed');
+        } else {
+          el.classList.add('node-dimmed');
+        }
+      });
+    });
+
+    // Zoom Controls
+    const svgEl = document.getElementById('architectureSvg');
+    document.getElementById('btnZoomIn').addEventListener('click', () => {
+      currentZoom = Math.min(currentZoom + 0.15, 2.0);
+      applyZoom();
+    });
+    document.getElementById('btnZoomOut').addEventListener('click', () => {
+      currentZoom = Math.max(currentZoom - 0.15, 0.65);
+      applyZoom();
+    });
+    document.getElementById('btnZoom100').addEventListener('click', () => {
+      currentZoom = 1.0;
+      applyZoom();
+    });
+    document.getElementById('btnZoomReset').addEventListener('click', () => {
+      currentZoom = 1.0;
+      svgEl.style.width = '100%';
+      svgEl.style.transform = 'none';
+    });
+
+    function applyZoom() {
+      svgEl.style.transform = `scale(${currentZoom})`;
+      svgEl.style.transformOrigin = 'center top';
+    }
+
+    // Toggle Sidebar
+    const sidebar = document.getElementById('inspectorSidebar');
+    document.getElementById('btnToggleSidebar').addEventListener('click', () => {
+      sidebar.classList.toggle('hidden');
+    });
+
+    // Spec Modal
+    document.getElementById('btnDownloadSpec').addEventListener('click', () => {
+      document.getElementById('modalSpec').classList.remove('hidden');
+    });
+    document.getElementById('btnCloseSpecModal').addEventListener('click', () => {
+      document.getElementById('modalSpec').classList.add('hidden');
+    });
+    document.getElementById('btnCloseSpecModal2').addEventListener('click', () => {
+      document.getElementById('modalSpec').classList.add('hidden');
+    });
+    document.getElementById('btnCopySpec').addEventListener('click', () => {
+      navigator.clipboard.writeText(JSON.stringify(archSpec, null, 2));
+      const btn = document.getElementById('btnCopySpec');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy to Clipboard', 1500);
+    });
+
+    // Airgap Tester Modal & Live Regex Sanitizer
+    const modalAirgap = document.getElementById('modalAirgap');
+    document.getElementById('btnAirgapSandbox').addEventListener('click', () => {
+      modalAirgap.classList.remove('hidden');
+    });
+    document.getElementById('btnCloseModal').addEventListener('click', () => {
+      modalAirgap.classList.add('hidden');
+    });
+
+    const samples = {
+      auto: "Inspect telemetry for chassis VIN WDB2040011A123456 and transfer refund to German account DE89370400440532013000.",
+      creds: "Connect to database postgresql://telematics_admin:Secret99Pass@prod-db.corp.internal:5432/fleet using OpenAI API key sk-proj-ab12cd34ef56gh78ij90kl12mn34op56qr78st90 and AWS key AKIAIOSFODNN7EXAMPLE.",
+      pii: "Contact lead test engineer Hans Schmidt at hans.schmidt@mercedes-mobility.corp or phone +49 711 17000 living in Stuttgart."
+    };
+
+    document.querySelectorAll('.btn-sample').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const type = e.target.getAttribute('data-sample');
+        document.getElementById('txtTestInput').value = samples[type] || '';
+        runAirgapSimulation();
+      });
+    });
+
+    document.getElementById('btnRunSanitize').addEventListener('click', runAirgapSimulation);
+
+    // Client-side simulation of Alias AI Aliasing Engine regex patterns
+    function runAirgapSimulation() {
+      const text = document.getElementById('txtTestInput').value;
+      if (!text) return;
+
+      const vault = new Map();
+      let transformed = text;
+      let counter = { vin: 1, iban: 1, key: 1, db: 1, email: 1, phone: 1, ip: 1 };
+
+      // 1. VIN
+      transformed = transformed.replace(/\b(?![0-9]{17}\b)(?!.*[IOQioq])[A-HJ-NPR-Z0-9]{17}\b/g, (m) => {
+        const token = `<ALIAS_VIN_${counter.vin++}>`;
+        vault.set(token, m);
+        return token;
+      });
+
+      // 2. German IBAN
+      transformed = transformed.replace(/\bDE\d{2}[0-9 ]{16,20}\b/g, (m) => {
+        const token = `<ALIAS_IBAN_${counter.iban++}>`;
+        vault.set(token, m);
+        return token;
+      });
+
+      // 3. DB URI
+      transformed = transformed.replace(/\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^\s"']+\b/gi, (m) => {
+        const token = `<ALIAS_DB_URI_${counter.db++}>`;
+        vault.set(token, m);
+        return token;
+      });
+
+      // 4. OpenAI Key
+      transformed = transformed.replace(/\bsk-(?:proj-)?[a-zA-Z0-9_-]{32,}\b/g, (m) => {
+        const token = `<ALIAS_OPENAI_KEY_${counter.key++}>`;
+        vault.set(token, m);
+        return token;
+      });
+
+      // 5. AWS Key
+      transformed = transformed.replace(/\bAKIA[0-9A-Z]{16}\b/g, (m) => {
+        const token = `<ALIAS_AWS_KEY_${counter.key++}>`;
+        vault.set(token, m);
+        return token;
+      });
+
+      // 6. Email
+      transformed = transformed.replace(/\b[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+\b/g, (m) => {
+        const token = `<ALIAS_EMAIL_${counter.email++}>`;
+        vault.set(token, m);
+        return token;
+      });
+
+      // 7. Phone
+      transformed = transformed.replace(/(?:\+49|0049|0)[1-9][0-9 \-\/]{7,15}\b/g, (m) => {
+        const token = `<ALIAS_PHONE_${counter.phone++}>`;
+        vault.set(token, m);
+        return token;
+      });
+
+      document.getElementById('txtSanitizedOutput').textContent = transformed;
+      const vaultObj = Object.fromEntries(vault);
+      document.getElementById('txtVaultOutput').textContent = JSON.stringify(vaultObj, null, 2);
+    }
+
+    // Default sample on launch
+    document.getElementById('txtTestInput').value = samples.auto;
+
+    // Start loading spec
+    loadSpec();
+  </script>
+</body>
+</html>

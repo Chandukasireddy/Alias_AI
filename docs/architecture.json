@@ -1,0 +1,741 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "meta": {
+    "project": "Alias AI",
+    "title": "Alias AI System Architecture & Data-Flow Specification",
+    "version": "0.1.0",
+    "description": "Interactive architectural specification of the Alias AI Zero-Knowledge Privacy Airgap Gateway, detailing component boundaries, enclaves, deterministic and neural sanitization, and sliding-window re-hydration.",
+    "lastUpdated": "2026-09-25",
+    "author": "Alias AI Architectural Working Group",
+    "compliance": [
+      "GDPR Article 25 (Privacy by Design and by Default)",
+      "EU AI Act Article 14 (Human Oversight & Technical Governance)",
+      "ISO 26262 & TISAX (Automotive Telematics & VIN Protection)"
+    ]
+  },
+  "zones": [
+    {
+      "id": "zone-clients",
+      "label": "Client Applications & IDE Agents",
+      "description": "Upstream consumer environments generating AI prompts containing code, automotive telematics, database queries, and private credentials.",
+      "securityLevel": "Level 0: Sovereign Local Client",
+      "color": "#38bdf8",
+      "badge": "UNSANITIZED INGRESS"
+    },
+    {
+      "id": "zone-gateway",
+      "label": "Local Gateway & Reverse Proxy",
+      "description": "Transparent local HTTP reverse proxy server listening on 127.0.0.1:8080, mimicking standard OpenAI API contract.",
+      "securityLevel": "Level 1: Local Interception Enclave",
+      "color": "#10b981",
+      "badge": "PORT 8080"
+    },
+    {
+      "id": "zone-enclave",
+      "label": "Local Enclave & Ephemeral Vault",
+      "description": "Zero-latency entity extraction, deterministic classification, egress firewall invariant verification, and in-memory vault mapping.",
+      "securityLevel": "Level 1-2: Sovereign Memory Enclave",
+      "color": "#14b8a6",
+      "badge": "0.00% LEAKAGE VAULT"
+    },
+    {
+      "id": "zone-local-ai",
+      "label": "Workstation Edge Model (Ollama)",
+      "description": "Local Google Gemma 2 2B neural model running on Ollama for extracting unstructured named entities without cloud telemetry.",
+      "securityLevel": "Level 1: Sovereign Edge AI",
+      "color": "#a855f7",
+      "badge": "PORT 11434"
+    },
+    {
+      "id": "zone-cloud",
+      "label": "Untrusted Cloud Reasoning Layer",
+      "description": "Remote frontier LLM APIs (NVIDIA NIM Nemotron-70B, OpenAI GPT-4o) receiving only structural AST and typed placeholders.",
+      "securityLevel": "Level 3: Public / Commercial Cloud",
+      "color": "#f59e0b",
+      "badge": "EGRESS OVER TLS"
+    }
+  ],
+  "components": [
+    {
+      "id": "client-cursor",
+      "label": "Cursor / AI Coding IDE",
+      "sublabel": "IDE Extension / Agent",
+      "zoneId": "zone-clients",
+      "type": "client",
+      "filePath": ".cursor/settings.json",
+      "technologies": ["Cursor IDE", "VS Code", "OpenAI Client SDK"],
+      "ports": ["Outbound to 127.0.0.1:8080"],
+      "endpoints": ["POST /v1/chat/completions"],
+      "description": "Autonomous AI coding agent in Cursor IDE. Configured with OPENAI_BASE_URL=http://127.0.0.1:8080/v1 to transparently route all edits and telematics through the airgap.",
+      "details": {
+        "role": "Agent Client",
+        "privacyTier": "Level 0 (Operator RAM)",
+        "configSnippet": "{\"openai.baseUrl\": \"http://127.0.0.1:8080/v1\", \"openai.apiKey\": \"alias-local-token\"}"
+      }
+    },
+    {
+      "id": "client-chat-repl",
+      "label": "Interactive Terminal REPL",
+      "sublabel": "src/chat.js",
+      "zoneId": "zone-clients",
+      "type": "client",
+      "filePath": "src/chat.js",
+      "technologies": ["Node.js Readline", "ANSI Streaming Display"],
+      "ports": ["Direct CLI REPL"],
+      "endpoints": ["Interactive CLI Commands"],
+      "description": "Minimalist terminal chat REPL inspired by Google Antigravity & Claude Code. Supports real-time token streaming, slash commands (/vault, /rehydrate, /clear, /exit), and instant privacy telemetry.",
+      "details": {
+        "role": "Terminal User Interface",
+        "commands": ["/vault", "/rehydrate", "/clear", "/exit", "?"],
+        "privacyTier": "Level 0 (Operator RAM)"
+      }
+    },
+    {
+      "id": "client-frontend-spa",
+      "label": "Angular Web Dashboard & Docs",
+      "sublabel": "frontend/src/app",
+      "zoneId": "zone-clients",
+      "type": "ui",
+      "filePath": "frontend/src/app/pages/docs/docs.component.ts",
+      "technologies": ["Angular 21", "TypeScript", "Tailwind CSS", "RxJS"],
+      "ports": ["Dev: 4200 / Prod: Vercel CDN"],
+      "endpoints": ["/home", "/docs", "/status"],
+      "description": "Modern Angular 21 web application providing marketing landing page, interactive privacy playground, compliance documentation, and airgap simulation.",
+      "details": {
+        "role": "Web UI & Documentation",
+        "privacyTier": "Level 0 (Browser Session)",
+        "features": ["Interactive Airgap Playground", "Compliance Reference", "Architecture Visualizer"]
+      }
+    },
+    {
+      "id": "client-python-sdk",
+      "label": "Python SDK / LangChain / Aider",
+      "sublabel": "agpy / openai-python",
+      "zoneId": "zone-clients",
+      "type": "client",
+      "filePath": "docs/INTEGRATIONS.md",
+      "technologies": ["Python 3.10+", "OpenAI SDK", "LangChain", "LlamaIndex"],
+      "ports": ["Outbound to 127.0.0.1:8080"],
+      "endpoints": ["POST /v1/chat/completions"],
+      "description": "Enterprise automated workflows, telemetry analyzers, and agent scripts calling OpenAI/NIM client configured with local base_url.",
+      "details": {
+        "role": "Programmatic Client",
+        "privacyTier": "Level 0"
+      }
+    },
+    {
+      "id": "proxy-server",
+      "label": "Transparent Proxy Server",
+      "sublabel": "src/server.js",
+      "zoneId": "zone-gateway",
+      "type": "service",
+      "filePath": "src/server.js",
+      "technologies": ["Node.js HTTP/HTTPS", "Stream Pipelines", "SSE Parser"],
+      "ports": ["127.0.0.1:8080 (Auto-increment on collision)"],
+      "endpoints": [
+        "POST /v1/chat/completions",
+        "GET /v1/models",
+        "GET /status",
+        "GET /health",
+        "GET / (HTML Dashboard)"
+      ],
+      "description": "High-throughput local HTTP gateway. Manages request lifecycle, routes payloads to the Aliasing Engine, performs cryptographic authentication injection, dispatches outbound TLS requests, and executes sliding-window re-hydration on SSE streams.",
+      "details": {
+        "role": "Gateway Controller",
+        "concurrency": "Non-blocking event loop",
+        "defaultUpstream": "NVIDIA NIM or OpenAI"
+      }
+    },
+    {
+      "id": "cli-controller",
+      "label": "CLI & Setup Wizard",
+      "sublabel": "src/cli.js & wizard.js",
+      "zoneId": "zone-gateway",
+      "type": "controller",
+      "filePath": "src/cli.js",
+      "technologies": ["Node.js Net", "Process Management", "TTY Styling"],
+      "ports": ["CLI Tooling"],
+      "endpoints": ["alias-ai start", "alias-ai doctor", "alias-ai test", "alias-ai config"],
+      "description": "CLI entry point providing interactive setup wizard, automated preflight diagnostics (doctor), 0.00% leakage verification (test), and environment injection.",
+      "details": {
+        "role": "CLI & Diagnostics",
+        "benchmarks": "500 prompts in <15ms (<0.03ms / prompt)"
+      }
+    },
+    {
+      "id": "aliasing-engine",
+      "label": "Aliasing Engine Core",
+      "sublabel": "src/aliaser.js",
+      "zoneId": "zone-enclave",
+      "type": "engine",
+      "filePath": "src/aliaser.js",
+      "technologies": ["Deterministic Classifier", "Co-reference Tracker", "Multi-pass Parser"],
+      "ports": ["In-Process Native Call"],
+      "endpoints": ["sanitizeMessagesAsync()", "sanitizeText()", "rehydrateText()"],
+      "description": "Core entity extraction and pseudonymisation engine. Coordinates deterministic regex parsing, calls optional Gemma 2 local neural extraction, assigns canonical <ALIAS_*> placeholders, and maintains co-reference consistency.",
+      "details": {
+        "role": "Sanitizer Enclave",
+        "rulesCount": "17 Built-in Regex Rules",
+        "supportedCategories": ["Credentials", "Automotive", "Financial", "Infrastructure", "PII"]
+      }
+    },
+    {
+      "id": "ephemeral-vault",
+      "label": "Ephemeral In-Memory Vault",
+      "sublabel": "RAM Key-Value Store",
+      "zoneId": "zone-enclave",
+      "type": "datastore",
+      "filePath": "src/aliaser.js#L14",
+      "technologies": ["JavaScript Map()", "Process RAM Only", "Zero Disk Persistence"],
+      "ports": ["In-Memory Only"],
+      "endpoints": ["vault.get()", "vault.set()", "reverseVault.get()", "clear()"],
+      "description": "Bidirectional in-memory store mapping real sensitive strings to typed alias tokens (e.g. 'DE89370...' <-> '<ALIAS_IBAN_1>'). Never touches disk or swap; purged instantaneously when process exits or /vault command is cleared.",
+      "details": {
+        "persistence": "Strictly Volatile RAM (Zero I/O)",
+        "memoryOverhead": "<2 MB for 10,000 entities",
+        "lifecycle": "Bound to gateway process PID"
+      }
+    },
+    {
+      "id": "egress-firewall",
+      "label": "Egress Gate Firewall",
+      "sublabel": "src/aliaser.js#L336",
+      "zoneId": "zone-enclave",
+      "type": "security",
+      "filePath": "src/aliaser.js#L336-L354",
+      "technologies": ["Mathematical Invariant Check", "NeMo Guardrails Style Verification"],
+      "ports": ["Internal Pre-Flight Check"],
+      "endpoints": ["verifyZeroLeakage(outboundText)"],
+      "description": "Hard-fail egress gate checking outbound wire strings against all vault secrets. Enforces E_leak == 0.00%. If any raw secret is detected, aborts connection with zero-byte payload and raises security violation.",
+      "details": {
+        "formula": "E_leak = (Sum(I(v_i in P_egress)) / N) * 100%",
+        "invariant": "E_leak === 0.00%",
+        "violationPolicy": "Hard abort & session invalidation"
+      }
+    },
+    {
+      "id": "sliding-rehydrator",
+      "label": "Sliding-Window Re-hydrator",
+      "sublabel": "src/server.js#L401",
+      "zoneId": "zone-enclave",
+      "type": "stream",
+      "filePath": "src/server.js#L401-L439",
+      "technologies": ["Sliding Window Buffer", "State Machine", "Atomic Token Substitution"],
+      "ports": ["In-Stream SSE Processor"],
+      "endpoints": ["rehydrateText(delta.content)"],
+      "description": "Stateful sliding-window streaming re-hydrator. Resolves the token-split problem where LLMs fragment <ALIAS_VIN_1> across consecutive SSE packets. Buffers partial alias markers and atomically substitutes real secrets from Vault in real-time.",
+      "details": {
+        "mode": "Active when -r or --rehydrate enabled",
+        "lag": "Zero token lag on safe text",
+        "guarantee": "Atomic substitution without chunk tearing"
+      }
+    },
+    {
+      "id": "ollama-gemma",
+      "label": "Google Gemma 2 (2B) NER",
+      "sublabel": "http://127.0.0.1:11434",
+      "zoneId": "zone-local-ai",
+      "type": "model",
+      "filePath": "src/aliaser.js#L246",
+      "technologies": ["Ollama Daemon", "Gemma 2 2B Instruct", "Local Hardware GPU/CPU"],
+      "ports": ["127.0.0.1:11434"],
+      "endpoints": ["POST /api/generate"],
+      "description": "Local small language model for neural Named Entity Recognition (NER). Scans prompt text for unstructured executive names, confidential facility code-words, and proprietary project codenames that defy regex patterns.",
+      "details": {
+        "modelId": "gemma2:2b",
+        "execution": "100% on-device (Zero outbound packets)",
+        "activation": "--gemma / --hybrid flag or x-alias-gemma header"
+      }
+    },
+    {
+      "id": "cloud-nvidia-nim",
+      "label": "NVIDIA NIM Nemotron-70B",
+      "sublabel": "integrate.api.nvidia.com",
+      "zoneId": "zone-cloud",
+      "type": "cloud-api",
+      "filePath": "src/server.js#L27",
+      "technologies": ["NVIDIA NIM Microservices", "Llama 3.1 Nemotron-70B", "SSE Streaming"],
+      "ports": ["HTTPS 443"],
+      "endpoints": ["POST /v1/chat/completions"],
+      "description": "Primary high-reasoning cloud frontier model. Processes anonymized code AST and typed placeholders (<ALIAS_*>) without receiving private credentials, telematics VINs, or bank coordinates.",
+      "details": {
+        "model": "meta/llama-3.1-nemotron-70b-instruct",
+        "reasoningBudget": "Configurable (default: 256 tokens)",
+        "privacyGuarantee": "Receives 0.00% private entropy"
+      }
+    },
+    {
+      "id": "cloud-openai",
+      "label": "OpenAI Cloud API",
+      "sublabel": "api.openai.com/v1",
+      "zoneId": "zone-cloud",
+      "type": "cloud-api",
+      "filePath": "src/server.js#L28",
+      "technologies": ["OpenAI REST API", "GPT-4o / GPT-4o-mini"],
+      "ports": ["HTTPS 443"],
+      "endpoints": ["POST /v1/chat/completions", "GET /v1/models"],
+      "description": "Standard cloud upstream fallback. Receives sanitized payload containing immutable placeholders.",
+      "details": {
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "privacyGuarantee": "Zero training data leakage"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-cursor-gateway",
+      "from": "client-cursor",
+      "to": "proxy-server",
+      "label": "HTTP POST /v1/chat/completions (Raw Secrets)",
+      "protocol": "HTTP/1.1 REST",
+      "type": "ingress",
+      "payloadType": "Raw Code + Sensitive Credentials",
+      "description": "Cursor dispatches agent queries to local proxy gateway on port 8080."
+    },
+    {
+      "id": "conn-repl-gateway",
+      "from": "client-chat-repl",
+      "to": "proxy-server",
+      "label": "Internal Prompt Stream",
+      "protocol": "In-Memory / HTTP Loopback",
+      "type": "ingress",
+      "payloadType": "Raw User Prompts",
+      "description": "Interactive CLI chat passes prompt directly to local proxy instance."
+    },
+    {
+      "id": "conn-spa-gateway",
+      "from": "client-frontend-spa",
+      "to": "proxy-server",
+      "label": "GET /status & Playground Probes",
+      "protocol": "HTTP CORS JSON",
+      "type": "telemetry",
+      "payloadType": "Telemetry & Test Payloads",
+      "description": "Angular dashboard checks gateway health, active vault size, and runs airgap simulations."
+    },
+    {
+      "id": "conn-gateway-aliaser",
+      "from": "proxy-server",
+      "to": "aliasing-engine",
+      "label": "sanitizeMessagesAsync()",
+      "protocol": "In-Process Node.js Call",
+      "type": "processing",
+      "payloadType": "Raw Message Array",
+      "description": "Proxy hands inbound request messages to Aliasing Engine for parsing."
+    },
+    {
+      "id": "conn-aliaser-vault",
+      "from": "aliasing-engine",
+      "to": "ephemeral-vault",
+      "label": "Store rawSecret <-> <ALIAS_*>",
+      "protocol": "RAM Map.set() (Volatile)",
+      "type": "storage",
+      "payloadType": "Secret Key-Value Pairs",
+      "description": "Extracted sensitive values are stored in the Ephemeral Vault, returning deterministic alias tokens."
+    },
+    {
+      "id": "conn-aliaser-gemma",
+      "from": "aliasing-engine",
+      "to": "ollama-gemma",
+      "label": "POST /api/generate (Optional Neural NER)",
+      "protocol": "HTTP JSON (127.0.0.1:11434)",
+      "type": "processing",
+      "payloadType": "Unstructured Text Snippet",
+      "description": "When --gemma or --hybrid is enabled, Aliasing Engine queries local Gemma 2 for person names and project codenames."
+    },
+    {
+      "id": "conn-aliaser-firewall",
+      "from": "aliasing-engine",
+      "to": "egress-firewall",
+      "label": "verifyZeroLeakage(outboundText)",
+      "protocol": "Cryptographic Memory Check",
+      "type": "security",
+      "payloadType": "Sanitized Wire Payload",
+      "description": "Egress firewall scans the sanitized payload against every raw secret in Vault to certify 0.00% leakage."
+    },
+    {
+      "id": "conn-firewall-gateway",
+      "from": "egress-firewall",
+      "to": "proxy-server",
+      "label": "Verdict: 0.00% Leakage [PASSED]",
+      "protocol": "Boolean Assertion",
+      "type": "security",
+      "payloadType": "Sanitized Payload Approved",
+      "description": "Firewall clears the outbound payload for cloud transmission."
+    },
+    {
+      "id": "conn-gateway-nvidia",
+      "from": "proxy-server",
+      "to": "cloud-nvidia-nim",
+      "label": "POST /v1/chat/completions (Over TLS)",
+      "protocol": "HTTPS / TLS 1.3",
+      "type": "egress",
+      "payloadType": "Sanitized Payload (<ALIAS_*> Tokens Only)",
+      "description": "Proxy gateway opens TLS socket to NVIDIA NIM with injected NVIDIA_API_KEY."
+    },
+    {
+      "id": "conn-gateway-openai",
+      "from": "proxy-server",
+      "to": "cloud-openai",
+      "label": "POST /v1/chat/completions (Fallback)",
+      "protocol": "HTTPS / TLS 1.3",
+      "type": "egress",
+      "payloadType": "Sanitized Payload (<ALIAS_*> Tokens Only)",
+      "description": "Proxy gateway forwards to OpenAI if selected as upstream provider."
+    },
+    {
+      "id": "conn-nvidia-gateway-sse",
+      "from": "cloud-nvidia-nim",
+      "to": "proxy-server",
+      "label": "Inbound SSE Token Stream",
+      "protocol": "HTTPS Server-Sent Events",
+      "type": "inbound-stream",
+      "payloadType": "Tokens with <ALIAS_*> Tokens",
+      "description": "Cloud reasoning model streams tokens containing alias tags back to proxy."
+    },
+    {
+      "id": "conn-gateway-rehydrator",
+      "from": "proxy-server",
+      "to": "sliding-rehydrator",
+      "label": "Pass SSE Chunks (-r active)",
+      "protocol": "Stream Pipe",
+      "type": "processing",
+      "payloadType": "SSE Delta Chunks",
+      "description": "When re-hydration mode is active, proxy passes incoming chunks to sliding-window buffer."
+    },
+    {
+      "id": "conn-rehydrator-vault",
+      "from": "sliding-rehydrator",
+      "to": "ephemeral-vault",
+      "label": "Lookup <ALIAS_*> -> rawSecret",
+      "protocol": "RAM Map.get()",
+      "type": "storage",
+      "payloadType": "Alias Token Lookup",
+      "description": "Sliding re-hydrator reads real secret values from local reverse vault."
+    },
+    {
+      "id": "conn-gateway-client-stream",
+      "from": "proxy-server",
+      "to": "client-cursor",
+      "label": "Streamed Response to Client",
+      "protocol": "HTTP SSE Stream",
+      "type": "response",
+      "payloadType": "Placeholders or Re-hydrated Plaintext",
+      "description": "Proxy flushes SSE deltas or JSON response to Cursor IDE or calling agent."
+    }
+  ],
+  "traces": [
+    {
+      "id": "trace-standard-airgap",
+      "name": "Standard Airgap Flow (Pass-Through Placeholders)",
+      "badge": "DEFAULT (FASTEST, 0 TOKEN LAG)",
+      "description": "Standard zero-knowledge workflow used by Cursor IDE and coding agents. Raw secrets are replaced with <ALIAS_*> tokens; responses retain placeholders natively.",
+      "steps": [
+        {
+          "step": 1,
+          "title": "Ingress Request from Cursor Agent",
+          "source": "client-cursor",
+          "target": "proxy-server",
+          "connectionId": "conn-cursor-gateway",
+          "privacyLevel": "Level 0: Sovereign Local Client",
+          "entropyLeakage": "N/A (Local Ingress)",
+          "description": "Cursor agent sends a prompt containing proprietary automotive telematics: VIN WDB2040011A123456 and DB URI postgresql://admin:secret123@fleet.internal:5432/db.",
+          "payloadSample": {
+            "prompt": "Inspect battery sensor telemetry for Mercedes VIN WDB2040011A123456 on postgresql://admin:secret123@fleet.internal:5432/db",
+            "detectedSecrets": ["WDB2040011A123456 (VIN)", "postgresql://admin:secret123@... (DB_URI)"]
+          }
+        },
+        {
+          "step": 2,
+          "title": "Deterministic Regex Extraction & Vault Storage",
+          "source": "proxy-server",
+          "target": "aliasing-engine",
+          "connectionId": "conn-gateway-aliaser",
+          "privacyLevel": "Level 1: Local Sanitizer Enclave",
+          "entropyLeakage": "0.00% (Enclave Isolation)",
+          "description": "Aliasing Engine parses text using 17 regex rules. Real secrets are extracted into the Ephemeral Vault in process RAM.",
+          "payloadSample": {
+            "vaultUpdates": [
+              { "secret": "WDB2040011A123456", "alias": "<ALIAS_VIN_1>" },
+              { "secret": "postgresql://admin:secret123@...", "alias": "<ALIAS_DB_URI_1>" }
+            ],
+            "sanitizedPrompt": "Inspect battery sensor telemetry for Mercedes VIN <ALIAS_VIN_1> on <ALIAS_DB_URI_1>"
+          }
+        },
+        {
+          "step": 3,
+          "title": "Egress Firewall Verification (0.00% Invariant)",
+          "source": "aliasing-engine",
+          "target": "egress-firewall",
+          "connectionId": "conn-aliaser-firewall",
+          "privacyLevel": "Level 2: Egress Gate Firewall",
+          "entropyLeakage": "0.00% [MATHEMATICALLY VERIFIED]",
+          "description": "Egress Firewall iterates all Vault keys and verifies zero substring matches exist in outbound payload. Formula E_leak == 0.00% holds true.",
+          "payloadSample": {
+            "vaultSize": 2,
+            "formula": "E_leak = (Sum(I(v_i in P_egress)) / N) * 100% = 0.00%",
+            "verdict": "PERMIT EGRESS"
+          }
+        },
+        {
+          "step": 4,
+          "title": "Outbound TLS to NVIDIA NIM Nemotron-70B",
+          "source": "proxy-server",
+          "target": "cloud-nvidia-nim",
+          "connectionId": "conn-gateway-nvidia",
+          "privacyLevel": "Level 3: Public Cloud Reasoning",
+          "entropyLeakage": "0.00% [Zero Exposure]",
+          "description": "Sanitized wire payload is transmitted to NVIDIA NIM over TLS 1.3 with injected authorization header.",
+          "payloadSample": {
+            "outboundWirePayload": "{\"model\": \"meta/llama-3.1-nemotron-70b-instruct\", \"messages\": [{\"role\": \"user\", \"content\": \"Inspect battery sensor telemetry for Mercedes VIN <ALIAS_VIN_1> on <ALIAS_DB_URI_1>\"}]}"
+          }
+        },
+        {
+          "step": 5,
+          "title": "Cloud Reasoning & Streaming Response",
+          "source": "cloud-nvidia-nim",
+          "target": "proxy-server",
+          "connectionId": "conn-nvidia-gateway-sse",
+          "privacyLevel": "Level 3: Cloud Inference",
+          "entropyLeakage": "0.00%",
+          "description": "NVIDIA Nemotron-70B reasons on anonymized system structure, returning recommendations referencing <ALIAS_VIN_1> and <ALIAS_DB_URI_1>.",
+          "payloadSample": {
+            "sseChunk": "data: {\"choices\": [{\"delta\": {\"content\": \"For vehicle <ALIAS_VIN_1>, battery voltage is within normal threshold. Querying database <ALIAS_DB_URI_1> for historical trends...\"}}]}"
+          }
+        },
+        {
+          "step": 6,
+          "title": "Pass-Through SSE Stream to Agent",
+          "source": "proxy-server",
+          "target": "client-cursor",
+          "connectionId": "conn-gateway-client-stream",
+          "privacyLevel": "Level 4: Pass-Through Client",
+          "entropyLeakage": "0.00%",
+          "description": "Proxy pipes SSE stream straight to Cursor IDE with 0ms added latency. Agent treats <ALIAS_*> as immutable semantic variables.",
+          "payloadSample": {
+            "clientOutput": "For vehicle <ALIAS_VIN_1>, battery voltage is within normal threshold. Querying database <ALIAS_DB_URI_1> for historical trends..."
+          }
+        }
+      ]
+    },
+    {
+      "id": "trace-sliding-rehydration",
+      "name": "Sliding-Window Re-hydration Flow (`alias-ai start -r`)",
+      "badge": "RE-HYDRATION MODE (-r)",
+      "description": "Solves token-split boundary fragmentation when streaming SSE tokens from cloud LLMs, restoring real secrets inside local workstation memory.",
+      "steps": [
+        {
+          "step": 1,
+          "title": "Client Ingress with Warranty Payout Details",
+          "source": "client-chat-repl",
+          "target": "proxy-server",
+          "connectionId": "conn-repl-gateway",
+          "privacyLevel": "Level 0: Operator RAM",
+          "entropyLeakage": "0.00%",
+          "description": "User submits a prompt with a German IBAN: DE89370400440532013000 to initiate warranty reimbursement.",
+          "payloadSample": {
+            "prompt": "Disburse warranty payment of €1,450 to German IBAN DE89370400440532013000.",
+            "secret": "DE89370400440532013000 (GERMAN_IBAN)"
+          }
+        },
+        {
+          "step": 2,
+          "title": "Vault Ingestion & Placeholder Mapping",
+          "source": "aliasing-engine",
+          "target": "ephemeral-vault",
+          "connectionId": "conn-aliaser-vault",
+          "privacyLevel": "Level 1: Local Sanitizer Enclave",
+          "entropyLeakage": "0.00%",
+          "description": "IBAN is mapped to <ALIAS_IBAN_1> in both forward vault and reverseVault.",
+          "payloadSample": {
+            "forwardVault": { "DE89370400440532013000": "<ALIAS_IBAN_1>" },
+            "reverseVault": { "<ALIAS_IBAN_1>": "DE89370400440532013000" }
+          }
+        },
+        {
+          "step": 3,
+          "title": "Cloud Inference Streams Fragmented Tokens",
+          "source": "cloud-nvidia-nim",
+          "target": "proxy-server",
+          "connectionId": "conn-nvidia-gateway-sse",
+          "privacyLevel": "Level 3: Cloud Inference",
+          "entropyLeakage": "0.00%",
+          "description": "NVIDIA NIM streams tokens. Tokenizer splits alias into: Chunk 1 ('Transfer authorized to <ALIAS_I'), Chunk 2 ('BAN_'), Chunk 3 ('1>.').",
+          "payloadSample": {
+            "chunk1": "\"Transfer authorized to <ALIAS_I\"",
+            "chunk2": "\"BAN_\"",
+            "chunk3": "\"1>.\""
+          }
+        },
+        {
+          "step": 4,
+          "title": "Sliding-Window Stateful Reassembly & Reverse Lookup",
+          "source": "proxy-server",
+          "target": "sliding-rehydrator",
+          "connectionId": "conn-gateway-rehydrator",
+          "privacyLevel": "Level 4: Local Re-hydration",
+          "entropyLeakage": "0.00%",
+          "description": "Sliding-window buffer buffers partial tag prefix. On closure tag '>', triggers atomic reverse lookup from Ephemeral Vault.",
+          "payloadSample": {
+            "bufferState": "Buffered '<ALIAS_IBAN_1>' -> Matched in reverseVault",
+            "atomicRestoration": "Replaced '<ALIAS_IBAN_1>' with 'DE89370400440532013000'"
+          }
+        },
+        {
+          "step": 5,
+          "title": "Restored Plaintext Delivered to Client",
+          "source": "sliding-rehydrator",
+          "target": "client-chat-repl",
+          "connectionId": "conn-gateway-client-stream",
+          "privacyLevel": "Level 0: Sovereign Local Client",
+          "entropyLeakage": "0.00%",
+          "description": "Terminal chat receives fully reconstructed text containing real IBAN without the cloud ever having seen it.",
+          "payloadSample": {
+            "finalDelivered": "Transfer authorized to DE89370400440532013000."
+          }
+        }
+      ]
+    },
+    {
+      "id": "trace-hybrid-gemma",
+      "name": "Hybrid Sanitization with Local Gemma 2 NER (`--gemma`)",
+      "badge": "EDGE NEURAL NER",
+      "description": "Uses on-device Google Gemma 2 (2B) on Ollama to identify unstructured named entities (executive names, project codenames, secret facilities).",
+      "steps": [
+        {
+          "step": 1,
+          "title": "Unstructured Prompt Ingestion",
+          "source": "client-cursor",
+          "target": "proxy-server",
+          "connectionId": "conn-cursor-gateway",
+          "privacyLevel": "Level 0: Sovereign Client",
+          "entropyLeakage": "0.00%",
+          "description": "User prompt contains unstructured personal names and project codenames: 'Lead engineer Dr. Florian Mueller requested review of Project Starlight at Stuttgart Proving Grounds.'",
+          "payloadSample": {
+            "unstructuredEntities": ["Dr. Florian Mueller", "Project Starlight", "Stuttgart Proving Grounds"]
+          }
+        },
+        {
+          "step": 2,
+          "title": "Local Query to Google Gemma 2 on Ollama",
+          "source": "aliasing-engine",
+          "target": "ollama-gemma",
+          "connectionId": "conn-aliaser-gemma",
+          "privacyLevel": "Level 1: Sovereign Edge AI",
+          "entropyLeakage": "0.00% (On-Device Inference)",
+          "description": "Aliasing Engine sends structured JSON extraction prompt to 127.0.0.1:11434 with model gemma2:2b.",
+          "payloadSample": {
+            "ollamaPrompt": "Extract confidential person names, internal facilities, or secret project codenames from this text: ...",
+            "gemmaResponse": "{\"entities\": [\"Dr. Florian Mueller\", \"Project Starlight\", \"Stuttgart Proving Grounds\"]}"
+          }
+        },
+        {
+          "step": 3,
+          "title": "Neural Vault Mapping & Outbound Dispatch",
+          "source": "aliasing-engine",
+          "target": "cloud-nvidia-nim",
+          "connectionId": "conn-gateway-nvidia",
+          "privacyLevel": "Level 3: Public Cloud Reasoning",
+          "entropyLeakage": "0.00%",
+          "description": "Entities mapped to <ALIAS_ENTITY_1>, <ALIAS_ENTITY_2>, <ALIAS_ENTITY_3>. Pure semantic structure forwarded to NVIDIA NIM.",
+          "payloadSample": {
+            "sanitizedWire": "Lead engineer <ALIAS_ENTITY_1> requested review of <ALIAS_ENTITY_2> at <ALIAS_ENTITY_3>."
+          }
+        }
+      ]
+    },
+    {
+      "id": "trace-diagnostics-audit",
+      "name": "System Health & Doctor Audit (`alias-ai doctor`)",
+      "badge": "DIAGNOSTICS & AUDIT",
+      "description": "Performs preflight checks on Node.js >= 18, port availability, Ollama/Gemma 2 service, regex throughput benchmarks, and audit attestation.",
+      "steps": [
+        {
+          "step": 1,
+          "title": "CLI Controller Triggers Doctor Command",
+          "source": "cli-controller",
+          "target": "proxy-server",
+          "connectionId": "conn-repl-gateway",
+          "privacyLevel": "Level 0: Local Machine",
+          "entropyLeakage": "0.00%",
+          "description": "Operator runs 'alias-ai doctor' or hits GET /status to inspect gateway telemetry.",
+          "payloadSample": {
+            "command": "alias-ai doctor",
+            "checks": ["Node.js >= 18.0.0", "Port 8080 free", "Ollama running", "Gemma 2 installed"]
+          }
+        },
+        {
+          "step": 2,
+          "title": "Throughput Benchmark Execution",
+          "source": "cli-controller",
+          "target": "aliasing-engine",
+          "connectionId": "conn-gateway-aliaser",
+          "privacyLevel": "Level 1: Sovereign Enclave",
+          "entropyLeakage": "0.00%",
+          "description": "Benchmarks 500 enterprise prompts with multi-category secrets. Confirms sub-millisecond execution (<0.03ms per prompt).",
+          "payloadSample": {
+            "promptsProcessed": 500,
+            "elapsedTime": "14.2ms",
+            "speed": "35,211 prompts/sec"
+          }
+        },
+        {
+          "step": 3,
+          "title": "Cryptographic Audit Attestation Emission",
+          "source": "proxy-server",
+          "target": "client-frontend-spa",
+          "connectionId": "conn-spa-gateway",
+          "privacyLevel": "Level 0: Local Audit Record",
+          "entropyLeakage": "0.00% [Attested]",
+          "description": "Emits JSON status containing SHA-256 integrity hash confirming GDPR Article 25 and EU AI Act Article 14 compliance.",
+          "payloadSample": {
+            "status": "AIRGAP_ONLINE",
+            "cloud_entropy_leakage": "0.00% [VERIFIED]",
+            "auditHash": "SHA256(SessionID || Timestamp || Article25 || Article14 || E_leak)"
+          }
+        }
+      ]
+    }
+  ],
+  "privacyLadder": [
+    {
+      "level": 0,
+      "name": "Local Disk / RAM",
+      "boundary": "Operator Workstation",
+      "content": "Raw source code + plaintext secrets (VINs, IBANs, API keys)",
+      "leakageRisk": "0.00% (Local)",
+      "enforcement": "Secrets never leave workstation volatile memory."
+    },
+    {
+      "level": 1,
+      "name": "Local Sanitizer Enclave",
+      "boundary": "In-Memory Aliasing Engine (Port 8080)",
+      "content": "Typed placeholders (<ALIAS_*>)",
+      "leakageRisk": "0.00%",
+      "enforcement": "17 deterministic regex rules + optional local Gemma 2 (2B) NER store secrets in RAM vault."
+    },
+    {
+      "level": 2,
+      "name": "Egress Gate Firewall",
+      "boundary": "Pre-TLS Socket Egress Gate",
+      "content": "Sanitized wire payload",
+      "leakageRisk": "0.00% [Verified]",
+      "enforcement": "Mathematical invariant E_leak == 0.00% proven against vault before outbound TLS."
+    },
+    {
+      "level": 3,
+      "name": "Cloud Frontier Reasoning LLM",
+      "boundary": "Untrusted Multi-Tenant Cloud",
+      "content": "Anonymized AST & semantic placeholder tokens",
+      "leakageRisk": "0.00%",
+      "enforcement": "NVIDIA Nemotron-70B or OpenAI reasons on structure without seeing real credentials."
+    },
+    {
+      "level": 4,
+      "name": "Inbound Stream / Local Client",
+      "boundary": "Stream Ingestion Pipeline",
+      "content": "Pass-through or re-hydrated stream",
+      "leakageRisk": "0.00%",
+      "enforcement": "Default: Pass-through with placeholders intact. Optional (-r): Local sliding-window re-hydration."
+    }
+  ]
+}

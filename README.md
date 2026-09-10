@@ -34,6 +34,7 @@ Every day, developers and everyday users paste **automotive VINs, German IBANs, 
 
 ## 📚 Documentation
 
+- [📖 **Live Developer Documentation Portal (/docs)**](https://alias-ai-pi.vercel.app/docs) — Comprehensive interactive documentation with LangChain examples, CLI reference, and architecture specs.
 - [🏗️ Deep Technical Architecture](docs/ARCHITECTURE.md) — Threat model, mathematical leakage metric ($E_{leak} \equiv 0.00\%$), and sliding-window streaming.
 - [🪜 The 5-Level Privacy Reduction Ladder](docs/PRIVACY_LADDER.md) — Formal governance framework and EU AI Act / GDPR Article 25 mapping.
 - [🔌 Integration Guides](docs/INTEGRATIONS.md) — Step-by-step setup for Cursor IDE, Python SDK, LangChain, Claude Code, and cURL.
